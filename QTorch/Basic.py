@@ -485,8 +485,127 @@ def apply_operator_to_modes_density(rho, operator, target_modes, dims):
     return rho_out.permute(inverse_order).reshape(total_dim, total_dim)
 
 
+def apply_single_mode_operator_to_state(state, op, target_mode, dims):
+    """
+    Apply one single-mode operator to a pure multimode state without building
+    the full Kronecker operator.
+
+    Args:
+        state: flat state vector, column vector, or tensor with shape ``dims``.
+        op: matrix with shape (d_out, d_in).
+        target_mode: integer mode index.
+        dims: list/tuple of input mode dimensions.
+
+    Returns:
+        A column vector for flat/column inputs, or a tensor-shaped state when
+        the input was tensor-shaped.
+    """
+    dims = list(dims)
+    if target_mode < 0 or target_mode >= len(dims):
+        raise ValueError("target_mode is out of range")
+
+    original_shape = tuple(state.shape)
+    total_dim = math.prod(dims)
+    tensor_input = original_shape == tuple(dims)
+    column_input = state.ndim == 2 and state.shape == (total_dim, 1)
+    flat_input = state.ndim == 1 and state.numel() == total_dim
+    if not (tensor_input or column_input or flat_input):
+        raise ValueError("state shape is incompatible with dims")
+
+    if op.ndim != 2 or op.shape[1] != dims[target_mode]:
+        raise ValueError("op shape does not match the target mode dimension")
+
+    dtype = torch.promote_types(state.dtype, op.dtype)
+    state_tensor = state.to(dtype=dtype).reshape(*dims)
+    op = op.to(dtype=dtype, device=state_tensor.device)
+
+    rest_dims = [dims[i] for i in range(len(dims)) if i != target_mode]
+    state_perm = state_tensor.movedim(target_mode, 0).reshape(dims[target_mode], -1)
+    out_perm = op @ state_perm
+
+    out_dims = list(dims)
+    out_dims[target_mode] = op.shape[0]
+    out_tensor = out_perm.reshape(op.shape[0], *rest_dims).movedim(0, target_mode)
+
+    if tensor_input:
+        return out_tensor
+    return out_tensor.reshape(math.prod(out_dims), 1)
+
+
 def is_noiseless_thermal_loss(kappa, n_th):
     return _scalar_float(kappa) == 1.0 and _scalar_float(n_th) == 0.0
+
+
+def thermal_loss_kraus_operators(
+        kappa,
+        n_th,
+        cutoff,
+        env_cutoff=None,
+        *,
+        dtype=torch.complex128,
+        device=None,
+        kraus_prob_tol=1e-12,
+        max_kraus_terms=None,
+):
+    """
+    Build single-mode Kraus operators for a finite-cutoff thermal-loss channel.
+
+    The operators use the beamsplitter dilation
+    K_{j,l} = sqrt(p_l) <j|_E U_BS(kappa) |l>_E.
+    """
+    cutoff = int(cutoff)
+    if cutoff <= 0:
+        raise ValueError("cutoff must be positive")
+
+    kappa_value = _scalar_float(kappa)
+    if kappa_value < 0.0 or kappa_value > 1.0:
+        raise ValueError("kappa must be in [0, 1]")
+
+    if max_kraus_terms is not None:
+        max_kraus_terms = int(max_kraus_terms)
+        if max_kraus_terms <= 0:
+            raise ValueError("max_kraus_terms must be positive or None")
+
+    eye = torch.eye(cutoff, dtype=dtype, device=device)
+    if kappa_value == 1.0:
+        return [eye]
+
+    if env_cutoff is None:
+        env_cutoff = cutoff
+    env_cutoff = int(env_cutoff)
+    if env_cutoff <= 0:
+        raise ValueError("env_cutoff must be positive")
+
+    real_dtype = _real_dtype_for(dtype)
+    theta = math.acos(math.sqrt(kappa_value))
+    probs = thermal_probs(n_th, env_cutoff, dtype=real_dtype, device=device).to(dtype)
+    U_BS = _unitary_beam_splitter_cutoffs(
+        theta, cutoff, env_cutoff, dtype=dtype, device=device
+    )
+    U_BS = U_BS.reshape(cutoff, env_cutoff, cutoff, env_cutoff)
+
+    terms = []
+    for env_in in range(env_cutoff):
+        prob = probs[env_in]
+        prob_value = _scalar_float(prob.real)
+        if kraus_prob_tol is not None and prob_value < kraus_prob_tol:
+            continue
+        sqrt_prob = torch.sqrt(prob.real).to(dtype)
+        for env_out in range(env_cutoff):
+            kraus = sqrt_prob * U_BS[:, env_out, :, env_in]
+            norm_sq = torch.linalg.matrix_norm(kraus).pow(2).real
+            norm_value = _scalar_float(norm_sq)
+            if kraus_prob_tol is not None and norm_value < kraus_prob_tol:
+                continue
+            terms.append((norm_value, kraus))
+
+    if not terms:
+        return [torch.zeros((cutoff, cutoff), dtype=dtype, device=device)]
+
+    terms.sort(key=lambda item: item[0], reverse=True)
+    if max_kraus_terms is not None:
+        terms = terms[:max_kraus_terms]
+    return [kraus for _, kraus in terms]
 
 
 def apply_single_mode_thermal_loss(
@@ -559,6 +678,25 @@ def apply_single_mode_thermal_loss(
             raise RuntimeError("thermal-loss channel did not preserve trace within tolerance")
 
     return rho_out
+
+
+def accumulate_reduced_density_from_branch(branch_state, dims, keep_P, keep_RP):
+    """
+    Return unnormalized rho_P and rho_RP contributions from one pure branch.
+
+    The branch state must not be normalized before calling this helper; Kraus
+    branch probabilities are already encoded in its norm.
+    """
+    dims = list(dims)
+    keep_P = list(keep_P)
+    keep_RP = list(keep_RP)
+
+    branch_state = branch_state.reshape(math.prod(dims), 1)
+    rho_P = partial_trace_torch(branch_state, shape=dims, sel=keep_P)
+    rho_RP = partial_trace_torch(branch_state, shape=dims, sel=keep_RP)
+
+    keep_rp_dim = math.prod([dims[mode] for mode in keep_RP])
+    return rho_P, rho_RP.reshape(keep_rp_dim, keep_rp_dim)
 
 
 def apply_thermal_noisy_transducer(

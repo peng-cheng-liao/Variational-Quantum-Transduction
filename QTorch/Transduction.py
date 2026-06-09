@@ -1429,7 +1429,180 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA(eta, parameters, depth, Nt,stat
     return CI, ns_input, np_input, state_RS, state_PA
 
 
+def _apply_CoherentInfo_ECD_MM_EA_decoder_state(
+        state_RSPAQ,
+        alphas_p_1,
+        alphas_a_1,
+        betas_p_1,
+        betas_a_1,
+        depth,
+        Nt,
+):
+    """Apply the post-transducer ECD-MM-EA decoder to a pure R,S,P,A,Q state."""
+    state_RSPAQ = state_RSPAQ.reshape(Nt, Nt, Nt, Nt, 2)
+    for i in range(depth):
+        U_ECD_p = ECD_unitary(alpha1=alphas_p_1[2 * i], alpha2=alphas_p_1[2 * i + 1], psi=betas_p_1[2 * i],
+                              theta=betas_p_1[2 * i + 1], Nt=Nt)
+        U_ECD_a = ECD_unitary(alpha1=alphas_a_1[2 * i], alpha2=alphas_a_1[2 * i + 1], psi=betas_a_1[2 * i],
+                              theta=betas_a_1[2 * i + 1], Nt=Nt)
+        U_ECD_p = U_ECD_p.reshape(2, Nt, 2, Nt)
+        U_ECD_a = U_ECD_a.reshape(2, Nt, 2, Nt)
+        state_RSPAQ = torch.einsum('abcd, hgdfc-> hgbfa', U_ECD_p, state_RSPAQ)
+        state_RSPAQ = torch.einsum('abcd, hgfdc-> hgfba', U_ECD_a, state_RSPAQ)
+    return state_RSPAQ.reshape(-1, 1)
+
+
 def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
+        eta,
+        parameters,
+        depth,
+        Nt,
+        state_initial_RS=None,
+        state_initial_PA=None,
+        *,
+        kappa_o=1.0,
+        n_o=0.0,
+        kappa_m=1.0,
+        n_m=0.0,
+        env_cutoff_o=None,
+        env_cutoff_m=None,
+        kraus_prob_tol=1e-12,
+        max_kraus_terms=None,
+        return_debug=False,
+):
+    """
+    Thermal-noise extension of transduction_protocol_CoherentInfo_ECD_MM_EA.
+
+    It uses the same encoder/decoder ansatz and coherent-information objective,
+    but applies thermal-loss Kraus branches to pure states and only accumulates
+    the reduced density matrices needed for coherent information.
+    """
+    if (
+            is_noiseless_thermal_loss(kappa_o, n_o)
+            and is_noiseless_thermal_loss(kappa_m, n_m)
+            and not return_debug
+    ):
+        return transduction_protocol_CoherentInfo_ECD_MM_EA(
+            eta, parameters, depth, Nt,
+            state_initial_RS=state_initial_RS,
+            state_initial_PA=state_initial_PA,
+        )
+
+    # 0->R, 1->S, 2->P, 3->A, 4->Q
+    theta = np.arcsin(np.sqrt(eta))  # eta = sin(theta)**2
+
+    # training parameters distribution for R,S, P and A
+    alphas_p_0 = parameters[0 * depth:2 * depth]  # alphas for the  mode p in preparation
+    alphas_a_0 = parameters[2 * depth:4 * depth]  # alphas for the  mode a in preparation
+    alphas_p_1 = parameters[4 * depth:6 * depth]  # alphas for the  mode p in measurement
+    alphas_a_1 = parameters[6 * depth:8 * depth]  # alphas for the  mode a in measurement
+    alphas_r = parameters[8 * depth:10 * depth]  # alphas for mode R in preparation
+    alphas_s = parameters[10 * depth:12 * depth]  # alphas for mode S in preparation
+
+    betas_p_0 = parameters[12 * depth:14 * depth]  # betas for the  mode p in preparation
+    betas_a_0 = parameters[14 * depth:16 * depth]  # betas for the  mode a in preparation
+    betas_p_1 = parameters[16 * depth:18 * depth]  # betas for the  mode p in measurement
+    betas_a_1 = parameters[18 * depth:20 * depth]  # betas for the  mode a in measurement
+    betas_r = parameters[20 * depth:22 * depth]  # betas for mode R in preparation
+    betas_s = parameters[22 * depth:24 * depth]  # betas for mode S in preparation
+
+    # input state for RS
+    parameters_RS = torch.cat([alphas_r, alphas_s, betas_r, betas_s])
+    state_RS = ECD_state_generation_MM(depth, parameters_RS, Nt, state_initial_MM=state_initial_RS)
+    ns_input = energy_n1n2_MM(state_RS, Nt)[1]
+
+    # input state for PA
+    parameters_PA_0 = torch.cat([alphas_p_0, alphas_a_0, betas_p_0, betas_a_0])
+    state_PA = ECD_state_generation_MM(depth, parameters_PA_0, Nt, state_initial_MM=state_initial_PA)
+    np_input = energy_n1n2_MM(state_PA, Nt)[0]
+
+    dims_RSPA = [Nt, Nt, Nt, Nt]
+    state_RSPA = torch.kron(state_RS.reshape(-1, 1), state_PA.reshape(-1, 1)).reshape(Nt, Nt * Nt, Nt)
+
+    # apply the ideal beamsplitter transducer between S and P
+    U_BS = unitary_beam_splitter(-theta, Nt)
+    state_RSPA = torch.einsum('ij,kjd->kid', U_BS, state_RSPA).reshape(-1, 1)
+
+    kraus_o = thermal_loss_kraus_operators(
+        kappa=kappa_o,
+        n_th=n_o,
+        cutoff=Nt,
+        env_cutoff=env_cutoff_o,
+        dtype=state_RSPA.dtype,
+        device=state_RSPA.device,
+        kraus_prob_tol=kraus_prob_tol,
+        max_kraus_terms=max_kraus_terms,
+    )
+    kraus_m = thermal_loss_kraus_operators(
+        kappa=kappa_m,
+        n_th=n_m,
+        cutoff=Nt,
+        env_cutoff=env_cutoff_m,
+        dtype=state_RSPA.dtype,
+        device=state_RSPA.device,
+        kraus_prob_tol=kraus_prob_tol,
+        max_kraus_terms=max_kraus_terms,
+    )
+
+    state_Q = torch.zeros((2, 1), dtype=state_RSPA.dtype, device=state_RSPA.device)
+    state_Q[0, 0] = 1
+    dims_RSPAQ = [Nt, Nt, Nt, Nt, 2]
+
+    rho_P = torch.zeros((Nt, Nt), dtype=state_RSPA.dtype, device=state_RSPA.device)
+    rho_RP = torch.zeros((Nt * Nt, Nt * Nt), dtype=state_RSPA.dtype, device=state_RSPA.device)
+    branch_count = 0
+    skipped_branch_count = 0
+
+    for K_o in kraus_o:
+        state_after_o = apply_single_mode_operator_to_state(state_RSPA, K_o, target_mode=1, dims=dims_RSPA)
+        for K_m in kraus_m:
+            branch_RSPA = apply_single_mode_operator_to_state(state_after_o, K_m, target_mode=2, dims=dims_RSPA)
+            branch_norm_sq = torch.sum(torch.abs(branch_RSPA) ** 2).real
+            if kraus_prob_tol is not None and float(branch_norm_sq.detach().cpu()) < kraus_prob_tol:
+                skipped_branch_count += 1
+                continue
+
+            branch_RSPAQ = torch.kron(branch_RSPA.reshape(-1, 1), state_Q)
+            branch_RSPAQ = _apply_CoherentInfo_ECD_MM_EA_decoder_state(
+                branch_RSPAQ,
+                alphas_p_1,
+                alphas_a_1,
+                betas_p_1,
+                betas_a_1,
+                depth,
+                Nt,
+            )
+
+            rho_P_i, rho_RP_i = accumulate_reduced_density_from_branch(
+                branch_RSPAQ,
+                dims=dims_RSPAQ,
+                keep_P=[2],
+                keep_RP=[0, 2],
+            )
+            rho_P = rho_P + rho_P_i
+            rho_RP = rho_RP + rho_RP_i
+            branch_count += 1
+
+    rho_P = 0.5 * (rho_P + rho_P.conj().T)
+    rho_RP = 0.5 * (rho_RP + rho_RP.conj().T)
+
+    CI = von_neumann_entropy(rho_P) - von_neumann_entropy(rho_RP)
+
+    if return_debug:
+        debug = {
+            "rho_P": rho_P,
+            "rho_RP": rho_RP,
+            "kraus_terms_o": len(kraus_o),
+            "kraus_terms_m": len(kraus_m),
+            "branch_count": branch_count,
+            "skipped_branch_count": skipped_branch_count,
+        }
+        return CI, ns_input, np_input, state_RS, state_PA, debug
+
+    return CI, ns_input, np_input, state_RS, state_PA
+
+
+def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise_full_density_reference(
         eta,
         parameters,
         depth,
@@ -1445,11 +1618,8 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
         env_cutoff_m=None,
 ):
     """
-    Thermal-noise extension of transduction_protocol_CoherentInfo_ECD_MM_EA.
-
-    It uses the same encoder/decoder ansatz and coherent-information objective,
-    but replaces the ideal transducer by an ideal transducer followed by
-    thermal-loss channels on the S and P output arms.
+    Full-density reference for small-cutoff validation of the thermal-noise
+    ECD-MM-EA protocol. This is intentionally not used in production training.
     """
     if is_noiseless_thermal_loss(kappa_o, n_o) and is_noiseless_thermal_loss(kappa_m, n_m):
         return transduction_protocol_CoherentInfo_ECD_MM_EA(
