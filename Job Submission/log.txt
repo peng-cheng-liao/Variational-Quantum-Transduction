@@ -1,0 +1,15 @@
+04: entanglement fidelity using mixed state
+05: entanglement fidelity using pure state QMM: HPC 11
+06 HPC 13: entanglement fidelity using pure state MM, post selection, cat code
+07 HPC 14: entanglement fidelity using pure state QM, cat code
+08 HPC 15: entanglement fidelity using pure state M, post selection, cat code
+
+09 HPC 16: entanglement fidelity using pure state MM, post selection, GKP
+
+
+10 HPC 17: entanglement fidelity using pure state MM, post selection, training encoding
+11 HPC 18(n=4), 19(n=5) 21(nt=40 n=5): entanglement fidelity using pure state M, post selection, training encoding
+12 HPC 20(nt=25) : entanglement fidelity using pure state MM, post selection, training encoding Nt=25,n=5
+
+
+22: ECD MM Nt = 20, training encoding, n=4, eta 0.1~0.9, entanglement fidelity using pure state, energy constraint on S and P

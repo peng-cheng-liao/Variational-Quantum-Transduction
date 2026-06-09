@@ -1,0 +1,102 @@
+01: ECD QMM Nt = 20, cat code states,eta = 0.09
+02: ECD MM Nt = 20, cat code states,eta = 0.09
+03: TMS Nt=40, coherent state,eta = 0.09
+04: TMS Nt=50, coherent state,eta = 0.09
+05: ECD Nt = 20, cat code states,eta = 0.09
+06: ECD Nt = 20, binomial code states,eta = 0.09
+07: ECD Nt = 20, cat code states,eta = 0.09,taget fucntion is min(f0,f1)
+08: ECD QM Nt = 20, cat code states,eta = 0.09,taget fucntion is min(f0,f1)
+09: ECD QM Nt = 20, cat code states,eta = 0.09,taget fucntion is (f0+f1)/2
+
+
+
+10: ECD  MM Nt = 20, cat code states,n=4, eta 0.1~0.9, cat0 cat1 cat+ cat- average and calculate EF after training
+11: ECD QMM Nt = 20, cat code states,n=4, eta 0.1~0.9, entanglement fidelity using mixed state
+12: ECD QMM Nt = 20, cat code states,n=4, eta 0.1~0.9, entanglement fidelity using pure state
+13: ECD MM Nt = 20, cat code states alpha=2,n=4, eta 0.1~0.9, entanglement fidelity using pure state
+14: ECD QM Nt = 20, cat code states alpha=2,n=4, eta 0.1~0.9, entanglement fidelity using pure state
+15: ECD  M Nt = 20, cat code states alpha=2,n=4, eta 0.1~0.9, entanglement fidelity using pure state
+
+
+16: ECD MM Nt = 20, GKP code states delta=0.32,kappa=0.32, n=4, eta 0.1~0.9, entanglement fidelity using pure state
+
+17: ECD MM Nt = 20, training encoding, n=4, eta 0.1~0.9, entanglement fidelity using pure state, no constraint on S
+18: ECD  M Nt = 20, training encoding, n=4, eta 0.1~0.9, entanglement fidelity using pure state, no constraint on S
+19: ECD  M Nt = 25, training encoding, n=5, eta 0.1~0.9, entanglement fidelity using pure state, constraint on both S and P,error corrected
+20: ECD  M Nt = 25, training encoding, n=5, eta 0.1~0.9, entanglement fidelity using pure state, constraint on P,error corrected
+21: ECD  M Nt = 40, training encoding, n=5, eta 0.1~0.9, entanglement fidelity using pure state, constraint on both S and P
+22: ECD MM Nt = 20, training encoding, n=4, eta 0.1~0.9, entanglement fidelity using pure state, energy constraint on S and P, error corrected
+23: ECD MM Nt = 20, training encoding, n=4, eta 0.01~0.09, entanglement fidelity using pure state, energy constraint on S and P
+24: ECD QM Nt = 20, training encoding, n=4, eta 0.1~0.9, entanglement fidelity using pure state, energy constraint on S and P
+25: ECD  M Nt = 20, training encoding, n=4, eta 0.1~0.9, entanglement fidelity using pure state, constraint on both S and P,error corrected
+
+26: ECD  M Nt = 20, training encoding, n=5, eta 0.1~0.9, entanglement fidelity using pure state, constraint on both S and P,error corrected, linear energy penalty, QMM decoding.
+27: ECD  M Nt = 20, training encoding, n=5, eta 0.1~0.9, entanglement fidelity using pure state, constraint on both S and P,error corrected, quadratic energy penalty, QMM decoding.
+
+A: Calcualte Entanglement Fidelity with TMSV state as fixed input in RS, MM encoding and decoding for mode P and A
+28: ECD MM Nt = 10, TMSV EF, n=2, eta 0.1~0.9, entanglement fidelity using pure state, constraint on both P,  quadratic energy penalty.
+29: ECD MM Nt = 20, TMSV EF, np = ns =4, eta 0.1~0.9, entanglement fidelity using pure state, constraint on both P,  quadratic energy penalty.
+
+
+# Calcualte Coherent Info
+30: Coherent Info, ECD MM, Nt = 20, ns=np=4, eta 0.1~0.9,    quadratic energy penalty.
+31: Coherent Info, ECD MM Tele, Nt = 20, ns=np=4, eta 0.1~0.9,  quadratic energy penalty.
+32: Coherent Info, TMS Nt = 20, ns=np=4, eta 0.1~0.9,  quadratic energy penalty.
+33: Coherent Info, ECD MM, Nt = 30, ns=np=4, eta 0.1~0.9,    quadratic energy penalty.
+34: Coherent Info, ECD MM Tele, Nt = 30, ns=np=4, eta 0.1~0.9,  quadratic energy penalty.
+35: Coherent Info, TMS Nt = 30, ns=np=4, eta 0.1~0.9,  quadratic energy penalty.
+
+
+36: Coherent Info, ECD MM, Nt = 30,depth=30 ns=np=4, eta 0.1~0.9,    quadratic energy penalty.
+37: Coherent Info, ECD MM, Nt = 30,depth=20 ns=np=4, eta 0.1~0.9,    quadratic energy penalty, test 1, TMSV input state and train decoding
+38: Coherent Info, ECD MM, Nt = 30,depth=20 ns=np=4, eta 0.1~0.9,    quadratic energy penalty, test 2, train encoding state and TMS decoding
+39: Coherent Info, ECD MM, Nt = 30,depth=30 ns=np=4, eta 0.1~0.9,    quadratic energy penalty, TMSV initial state
+40: Coherent Info, ECD MM, Nt = 30,depth=30 ns=np=4, eta 0.1~0.9,    quadratic energy penalty, iterative training
+41: Coherent Info, Tele,   Nt = 30,depth=30 ns=np=4, eta 0.1~0.9,    quadratic energy penalty
+42: Coherent Info, ECD MM, Nt = 30,depth=30 ns=np=4, eta 0.1~0.9,    quadratic energy penalty, TMS initialization: thermal state for S and TMS for encoding and decoding.
+43: Coherent Info, ECD MM, Nt = 30,depth=20 ns=np=2, eta 0.1~0.9,    quadratic energy penalty.
+44: Coherent Info, ECD MM, Nt = 30,depth=20 ns=np=4, eta 0.1~0.9,    quadratic energy penalty.
+45: Coherent Info, ECD MM Tele, Nt = 30,depth=20,  ns=np=2, eta 0.1~0.9,0.01~0.09  quadratic energy penalty.
+46: Coherent Info, Tele,   Nt = 30,depth=20 ns=np=2, eta 0.1~0.9,    quadratic energy penalty
+47: Coherent Info, ECD MM Tele UM, Nt = 30,depth=20,  ns=np=2, eta 0.1~0.9,  quadratic energy penalty.
+48: Coherent Info, ECD AQT, Nt = 30, depth=20,  ns=np=2, eta 0.1~0.9,  quadratic energy penalty. (adative quantum transduction from jiangliang's paper)
+49: Coherent Info, ECD MM Tele UM, Nt = 30,depth=15,  ns=np=2, eta 0.1~0.9,  quadratic energy penalty.
+50: Coherent Info, ECD MM Tele, Nt = 30, depth=20,  ns=np=1, eta 0.1~0.9, quadratic energy penalty.
+51: Coherent Info, ECD MM Tele, Nt = 30, depth=20,  ns=np=3, eta 0.1~0.9, quadratic energy penalty.
+52: Coherent Info, ECD MM, Nt = 30,depth=20 ns=np=2, eta 0.2~0.4,    quadratic energy penalty.
+53: Coherent Info, ECD MM Tele fixed input, Nt = 30,depth=20,  ns=np=2, eta 0.1~0.9, quadratic energy penalty.
+54: Coherent Info, ECD MM fixed input, Nt = 30, d=4, depth=20 ns=np=2, eta 0.1~0.9,    quadratic energy penalty, RS: GKP; PA: squeezed coherent state
+55: Coherent Info, ECD MM, Nt = 30, depth=20 ns=np=2, eta 0.1~0.9,    quadratic energy penalty, iterative training
+56: Coherent Info, ECD MM Tele IteTrain, Nt = 30,depth=20,  ns=np=2, eta 0.1~0.9,0.01~0.09  quadratic energy penalty.
+57: Coherent Info, ECD MM Tele fixed input, Nt = 30, d=4, depth=20 ns=np=2, eta 0.1~0.9,    quadratic energy penalty, RS: GKP; PA: squeezed coherent state, connect r and n_thermal
+58: Coherent Info, ECD M Tele, Nt = 30,depth=20,  ns=np=2, eta 0.1~0.9,0.01~0.09  quadratic energy penalty.
+59: Coherent Info, ECD M, Nt = 30,depth=20,  ns=np=2, eta 0.1~0.9, quadratic energy penalty.
+
+60: Coherent Info, GKP,Nt=30,ns=np=2, eta 0.1~0.9,  quadratic energy penalty.
+61: Coherent Info, GKP new construction,Nt=40,ns=np=2, eta 0.1~0.9,  quadratic energy penalty.
+62: Coherent Info, GKP new construction,Nt=40,ns=np=3, eta 0.1~0.9,  quadratic energy penalty.
+63: Coherent Info, GKP new construction,Nt=30,ns=np=3, eta 0.1~0.9,  quadratic energy penalty.
+64: Coherent Info, GKP new construction,Nt=30,ns=np=2, eta 0.1~0.9,  quadratic energy penalty.
+
+
+65: Coherent Info, ECD MM Tele, Nt = 30,depth=20,  ns=np=3, eta 0.1~0.9,0.01~0.09  quadratic energy penalty.
+66: Coherent Info, ECD AQT, Nt = 30, depth=20,  ns=np=3, eta 0.1~0.9,  quadratic energy penalty. (adative quantum transduction from jiangliang's paper)
+67: Coherent Info, ECD MM, Nt = 30,depth=20 ns=np=2, eta 0.15~0.95,0.01~0.09,    quadratic energy penalty.
+
+################################
+68(non-adaptive VQT-EA n=3): Coherent Info, ECD MM, Nt = 30, depth=20 ns=np=3, eta 0.05~0.95,    quadratic energy penalty.
+69(non-adaptive VQT n=3): Coherent Info, ECD M, Nt = 30,depth=20,  ns=np=3, eta 0.05~0.95,  quadratic energy penalty.
+
+
+70(New Training method non-adaptive VQT-EA n=3): Coherent Info, ECD MM, Nt = 30, depth=20 ns=np=3, eta 0.05~0.95,    quadratic energy penalty.
+
+
+82:Coherent Information, Non-adaptive EA n=3
+83:Coherent Information, Non-adaptive No-EA n=3
+84:Coherent Information, Non-adaptive EA n=2
+85:GKP state match pure n=3
+86:GKP state match mix n=3
+87:Coherent Information, Non-adaptive  No-EA n=2
+
+A: Calculate Entanglement Fidelity with TMSV state as fixed input in RS
+A01: TMSVEF, ECD MM, Nt = 20, np = ns =4, eta 0.1~0.9,  quadratic energy penalty, QMM encoding and decoding for mode P and A
