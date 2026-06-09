@@ -1429,6 +1429,103 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA(eta, parameters, depth, Nt,stat
     return CI, ns_input, np_input, state_RS, state_PA
 
 
+def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
+        eta,
+        parameters,
+        depth,
+        Nt,
+        state_initial_RS=None,
+        state_initial_PA=None,
+        *,
+        kappa_o=1.0,
+        n_o=0.0,
+        kappa_m=1.0,
+        n_m=0.0,
+        env_cutoff_o=None,
+        env_cutoff_m=None,
+):
+    """
+    Thermal-noise extension of transduction_protocol_CoherentInfo_ECD_MM_EA.
+
+    It uses the same encoder/decoder ansatz and coherent-information objective,
+    but replaces the ideal transducer by an ideal transducer followed by
+    thermal-loss channels on the S and P output arms.
+    """
+    if is_noiseless_thermal_loss(kappa_o, n_o) and is_noiseless_thermal_loss(kappa_m, n_m):
+        return transduction_protocol_CoherentInfo_ECD_MM_EA(
+            eta, parameters, depth, Nt,
+            state_initial_RS=state_initial_RS,
+            state_initial_PA=state_initial_PA,
+        )
+
+    # 0->R, 1->S, 2->P, 3->A, 4->Q
+
+    # training parameters distribution for R,S, P and A
+    alphas_p_0 = parameters[0 * depth:2 * depth]  # alphas for the  mode p in preparation
+    alphas_a_0 = parameters[2 * depth:4 * depth]  # alphas for the  mode a in preparation
+    alphas_p_1 = parameters[4 * depth:6 * depth]  # alphas for the  mode p in measurement
+    alphas_a_1 = parameters[6 * depth:8 * depth]  # alphas for the  mode a in measurement
+    alphas_r = parameters[8 * depth:10 * depth]  # alphas for mode R in preparation
+    alphas_s = parameters[10 * depth:12 * depth]  # alphas for mode S in preparation
+
+    betas_p_0 = parameters[12 * depth:14 * depth]  # betas for the  mode p in preparation
+    betas_a_0 = parameters[14 * depth:16 * depth]  # betas for the  mode a in preparation
+    betas_p_1 = parameters[16 * depth:18 * depth]  # betas for the  mode p in measurement
+    betas_a_1 = parameters[18 * depth:20 * depth]  # betas for the  mode a in measurement
+    betas_r = parameters[20 * depth:22 * depth]  # betas for mode R in preparation
+    betas_s = parameters[22 * depth:24 * depth]  # betas for mode S in preparation
+
+    # input state for RS
+    parameters_RS = torch.cat([alphas_r, alphas_s, betas_r, betas_s])
+    state_RS = ECD_state_generation_MM(depth, parameters_RS, Nt, state_initial_MM=state_initial_RS)
+    ns_input = energy_n1n2_MM(state_RS, Nt)[1]
+
+    # input state for PA
+    parameters_PA_0 = torch.cat([alphas_p_0, alphas_a_0, betas_p_0, betas_a_0])
+    state_PA = ECD_state_generation_MM(depth, parameters_PA_0, Nt, state_initial_MM=state_initial_PA)
+    np_input = energy_n1n2_MM(state_PA, Nt)[0]
+
+    state_RSPA = torch.kron(state_RS.reshape(-1, 1), state_PA.reshape(-1, 1)).reshape(-1, 1)
+    rho_RSPA = state_RSPA @ dagger(state_RSPA)
+    dims_RSPA = [Nt, Nt, Nt, Nt]
+
+    rho_RSPA = apply_thermal_noisy_transducer(
+        rho_RSPA,
+        eta,
+        dims_RSPA,
+        kappa_o=kappa_o,
+        n_o=n_o,
+        kappa_m=kappa_m,
+        n_m=n_m,
+        env_cutoff_o=env_cutoff_o,
+        env_cutoff_m=env_cutoff_m,
+    )
+
+    # measurement training
+    state_Q = torch.zeros((2, 1), dtype=rho_RSPA.dtype, device=rho_RSPA.device)
+    state_Q[0, 0] = 1
+    rho_Q = state_Q @ dagger(state_Q)
+    rho_RSPAQ = torch.kron(rho_RSPA, rho_Q)
+    dims_RSPAQ = [Nt, Nt, Nt, Nt, 2]
+
+    for i in range(depth):
+        U_ECD_p = ECD_unitary(alpha1=alphas_p_1[2 * i], alpha2=alphas_p_1[2 * i + 1], psi=betas_p_1[2 * i],
+                              theta=betas_p_1[2 * i + 1], Nt=Nt)
+        U_ECD_a = ECD_unitary(alpha1=alphas_a_1[2 * i], alpha2=alphas_a_1[2 * i + 1], psi=betas_a_1[2 * i],
+                              theta=betas_a_1[2 * i + 1], Nt=Nt)
+        rho_RSPAQ = apply_operator_to_modes_density(rho_RSPAQ, U_ECD_p, [4, 2], dims_RSPAQ)
+        rho_RSPAQ = apply_operator_to_modes_density(rho_RSPAQ, U_ECD_a, [4, 3], dims_RSPAQ)
+
+    # calculate Coherent Information
+    rho_P = partial_trace_density_torch(rho_RSPAQ, shape=dims_RSPAQ, sel=[2])
+    rho_RP = partial_trace_density_torch(rho_RSPAQ, shape=dims_RSPAQ, sel=[0, 2])
+    rho_RP = rho_RP.reshape(Nt * Nt, Nt * Nt)
+
+    CI = von_neumann_entropy(rho_P) - von_neumann_entropy(rho_RP)
+
+    return CI, ns_input, np_input, state_RS, state_PA
+
+
 def transduction_protocol_CoherentInfo_ECD_M_EA(eta, parameters, depth, Nt, state_initial_RS = None, state_initial_P = None):
     """
     :param r: squeezing parameter for TMS

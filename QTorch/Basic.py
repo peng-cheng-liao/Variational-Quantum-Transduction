@@ -379,6 +379,235 @@ def unitary_beam_splitter(theta, Nt):
     return U2
 
 
+def _real_dtype_for(dtype):
+    if dtype in (torch.float32, torch.complex64):
+        return torch.float32
+    return torch.float64
+
+
+def _scalar_float(value):
+    if torch.is_tensor(value):
+        if value.numel() != 1:
+            raise ValueError("Expected a scalar value.")
+        return float(value.detach().cpu())
+    return float(value)
+
+
+def thermal_probs(n_th, cutoff, *, dtype=None, device=None, normalize=True):
+    """
+    Return truncated thermal photon-number probabilities p_k for k=0,...,cutoff-1.
+
+    p_k = n_th**k / (n_th + 1)**(k + 1).
+
+    If normalize=True, renormalize after truncation.
+    The function preserves the requested torch dtype/device.
+    """
+    if cutoff <= 0:
+        raise ValueError("cutoff must be positive")
+
+    if torch.is_tensor(n_th):
+        if device is None:
+            device = n_th.device
+        if dtype is None:
+            dtype = _real_dtype_for(n_th.dtype)
+
+    if dtype is None:
+        dtype = torch.float64
+    dtype = _real_dtype_for(dtype)
+
+    n_th = torch.as_tensor(n_th, dtype=dtype, device=device).detach()
+    if bool(torch.any(n_th < 0).item()):
+        raise ValueError("n_th must be non-negative")
+
+    k = torch.arange(cutoff, dtype=dtype, device=device)
+    probs = n_th ** k / (n_th + 1.0) ** (k + 1.0)
+
+    if normalize:
+        total = probs.sum()
+        if bool((total > 0).item()):
+            probs = probs / total
+
+    return probs
+
+
+def _unitary_beam_splitter_cutoffs(theta, cutoff_0, cutoff_1, *, dtype=torch.complex128, device=None):
+    if cutoff_0 == cutoff_1:
+        return unitary_beam_splitter(theta, cutoff_0).to(dtype=dtype, device=device)
+
+    real_dtype = _real_dtype_for(dtype)
+    theta = torch.as_tensor(theta, dtype=real_dtype, device=device).detach()
+    a = destroy(cutoff_0).to(dtype=dtype, device=device)
+    adg = create(cutoff_0).to(dtype=dtype, device=device)
+    b = destroy(cutoff_1).to(dtype=dtype, device=device)
+    bdg = create(cutoff_1).to(dtype=dtype, device=device)
+    H = theta * (-torch.kron(a, bdg) + torch.kron(adg, b))
+    return torch.matrix_exp(H)
+
+
+def apply_operator_to_modes_density(rho, operator, target_modes, dims):
+    """
+    Apply a unitary/operator to selected modes of a multimode density matrix.
+
+    The mode order of ``operator`` must match ``target_modes``.
+    """
+    dims = list(dims)
+    target_modes = list(target_modes)
+    if len(set(target_modes)) != len(target_modes):
+        raise ValueError("target_modes must not contain duplicates")
+    if any(mode < 0 or mode >= len(dims) for mode in target_modes):
+        raise ValueError("target_modes contains an out-of-range mode")
+
+    total_dim = math.prod(dims)
+    if rho.shape != (total_dim, total_dim):
+        rho = rho.reshape(total_dim, total_dim)
+
+    target_dims = [dims[mode] for mode in target_modes]
+    target_dim = math.prod(target_dims)
+    if operator.shape != (target_dim, target_dim):
+        raise ValueError("operator shape does not match target mode dimensions")
+
+    rest_modes = [mode for mode in range(len(dims)) if mode not in target_modes]
+    rest_dims = [dims[mode] for mode in rest_modes]
+    rest_dim = math.prod(rest_dims) if rest_dims else 1
+
+    operator = operator.to(dtype=rho.dtype, device=rho.device)
+    order = target_modes + rest_modes + [mode + len(dims) for mode in target_modes + rest_modes]
+    rho_perm = rho.reshape(*dims, *dims).permute(order)
+    rho_perm = rho_perm.reshape(target_dim, rest_dim, target_dim, rest_dim)
+
+    rho_out = torch.einsum("ab,bidj,cd->aicj", operator, rho_perm, torch.conj(operator))
+    rho_out = rho_out.reshape(*target_dims, *rest_dims, *target_dims, *rest_dims)
+
+    inverse_order = [0] * (2 * len(dims))
+    for new_axis, old_axis in enumerate(order):
+        inverse_order[old_axis] = new_axis
+
+    return rho_out.permute(inverse_order).reshape(total_dim, total_dim)
+
+
+def is_noiseless_thermal_loss(kappa, n_th):
+    return _scalar_float(kappa) == 1.0 and _scalar_float(n_th) == 0.0
+
+
+def apply_single_mode_thermal_loss(
+        rho,
+        target_mode,
+        dims,
+        kappa,
+        n_th,
+        env_cutoff=None,
+        *,
+        check_trace=False,
+):
+    """
+    Apply a thermal-loss channel to one mode of a multimode density matrix.
+
+    Args:
+        rho: multimode density matrix.
+        target_mode: index of the affected mode.
+        dims: list/tuple of Fock cutoffs for all modes.
+        kappa: transmissivity of the output-loss beamsplitter.
+        n_th: mean thermal photon number of the bath.
+        env_cutoff: cutoff for the thermal bath mode. Defaults to the target-mode cutoff.
+        check_trace: optional debug flag.
+
+    Returns:
+        rho_out with the same Hilbert-space dimension and mode ordering as rho.
+    """
+    dims = list(dims)
+    if target_mode < 0 or target_mode >= len(dims):
+        raise ValueError("target_mode is out of range")
+
+    if is_noiseless_thermal_loss(kappa, n_th):
+        return rho
+
+    total_dim = math.prod(dims)
+    rho = rho.reshape(total_dim, total_dim)
+    target_cutoff = dims[target_mode]
+    if env_cutoff is None:
+        env_cutoff = target_cutoff
+    env_cutoff = int(env_cutoff)
+    if env_cutoff <= 0:
+        raise ValueError("env_cutoff must be positive")
+
+    kappa_value = _scalar_float(kappa)
+    if kappa_value < 0.0 or kappa_value > 1.0:
+        raise ValueError("kappa must be in [0, 1]")
+
+    real_dtype = _real_dtype_for(rho.dtype)
+    theta = math.acos(math.sqrt(kappa_value))
+    probs = thermal_probs(n_th, env_cutoff, dtype=real_dtype, device=rho.device).to(rho.dtype)
+    U_BS = _unitary_beam_splitter_cutoffs(
+        theta, target_cutoff, env_cutoff, dtype=rho.dtype, device=rho.device
+    )
+    U_BS = U_BS.reshape(target_cutoff, env_cutoff, target_cutoff, env_cutoff)
+
+    rho_out = torch.zeros_like(rho)
+    for env_in in range(env_cutoff):
+        prob = probs[env_in]
+        if _scalar_float(prob.real) == 0.0:
+            continue
+        sqrt_prob = torch.sqrt(prob.real).to(rho.dtype)
+        for env_out in range(env_cutoff):
+            kraus = sqrt_prob * U_BS[:, env_out, :, env_in]
+            rho_out = rho_out + apply_operator_to_modes_density(rho, kraus, [target_mode], dims)
+
+    rho_out = 0.5 * (rho_out + rho_out.conj().T)
+
+    if check_trace:
+        if not torch.allclose(torch.trace(rho), torch.trace(rho_out), atol=1e-8, rtol=1e-8):
+            raise RuntimeError("thermal-loss channel did not preserve trace within tolerance")
+
+    return rho_out
+
+
+def apply_thermal_noisy_transducer(
+        rho_SPA,
+        eta,
+        dims,
+        *,
+        kappa_o=1.0,
+        n_o=0.0,
+        kappa_m=1.0,
+        n_m=0.0,
+        env_cutoff_o=None,
+        env_cutoff_m=None,
+):
+    """
+    Apply the ideal S-P transducer beamsplitter, followed by output thermal loss.
+
+    For ``dims=[S, P, A]`` the S and P modes are indices 0 and 1. For
+    ``dims=[R, S, P, A]`` the reference R is left untouched and the S and P
+    modes are indices 1 and 2.
+    """
+    dims = list(dims)
+    if len(dims) == 3:
+        s_mode, p_mode = 0, 1
+    elif len(dims) == 4:
+        s_mode, p_mode = 1, 2
+    else:
+        raise ValueError("dims must be [S, P, A] or [R, S, P, A]")
+
+    if dims[s_mode] != dims[p_mode]:
+        raise ValueError("S and P must use the same cutoff for the ideal transducer")
+
+    eta_value = _scalar_float(eta)
+    if eta_value < 0.0 or eta_value > 1.0:
+        raise ValueError("eta must be in [0, 1]")
+
+    rho = rho_SPA.reshape(math.prod(dims), math.prod(dims))
+    theta = math.asin(math.sqrt(eta_value))
+    U_BS = unitary_beam_splitter(-theta, dims[s_mode]).to(dtype=rho.dtype, device=rho.device)
+    rho = apply_operator_to_modes_density(rho, U_BS, [s_mode, p_mode], dims)
+    rho = apply_single_mode_thermal_loss(
+        rho, s_mode, dims, kappa_o, n_o, env_cutoff_o
+    )
+    rho = apply_single_mode_thermal_loss(
+        rho, p_mode, dims, kappa_m, n_m, env_cutoff_m
+    )
+    return rho
+
+
 def phase_rotation(theta, Nt):
     n = torch.arange(0, Nt)
     R = torch.diag_embed(torch.exp(-1j * theta * n))
@@ -1174,3 +1403,30 @@ def partial_trace_torch(state, shape, sel):
     string = make_partial_trace_einsum_string(shape, sel)
     rho = torch.einsum(string, state, torch.conj(state))
     return rho
+
+
+def partial_trace_density_torch(rho, shape, sel):
+    """
+    Partial trace for a multimode density matrix.
+
+    Args:
+        rho: density matrix with total dimension prod(shape).
+        shape: local dimensions in the internal mode order.
+        sel: mode indices to keep, in the desired output order.
+    """
+    shape = list(shape)
+    keep = list(sel)
+    if any(mode < 0 or mode >= len(shape) for mode in keep):
+        raise ValueError("sel contains an out-of-range mode")
+
+    trace = [mode for mode in range(len(shape)) if mode not in keep]
+    total_dim = math.prod(shape)
+    rho = rho.reshape(total_dim, total_dim)
+
+    perm = keep + trace + [mode + len(shape) for mode in keep + trace]
+    rho_perm = rho.reshape(*shape, *shape).permute(perm)
+
+    keep_dim = math.prod([shape[mode] for mode in keep]) if keep else 1
+    trace_dim = math.prod([shape[mode] for mode in trace]) if trace else 1
+    rho_perm = rho_perm.reshape(keep_dim, trace_dim, keep_dim, trace_dim)
+    return torch.einsum("abcb->ac", rho_perm)
