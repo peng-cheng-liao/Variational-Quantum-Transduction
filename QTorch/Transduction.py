@@ -1696,6 +1696,184 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise_full_density_refe
     return CI, ns_input, np_input, state_RS, state_PA
 
 
+def _validate_finite_scalar(name, value, *, minimum=None, maximum=None):
+    value = float(value)
+    if not np.isfinite(value):
+        raise ValueError(f"{name} must be finite")
+    if minimum is not None and value < minimum:
+        raise ValueError(f"{name} must be >= {minimum}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"{name} must be <= {maximum}")
+    return value
+
+
+def _bosonic_entropy_g(x):
+    x = np.maximum(np.asarray(x, dtype=np.float64), 0.0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return (x + 1.0) * np.log2(x + 1.0) - np.where(x > 0.0, x * np.log2(x), 0.0)
+
+
+def _gaussian_thermal_loss_coherent_information(N, T, N_B):
+    N = np.asarray(N, dtype=np.float64)
+    output_n = T * N + (1.0 - T) * N_B
+
+    a = N + 0.5
+    b = output_n + 0.5
+    c2 = np.maximum(T * N * (N + 1.0), 0.0)
+    delta = a * a + b * b - 2.0 * c2
+    determinant = (a * b - c2) ** 2
+
+    radicand = np.maximum(delta * delta - 4.0 * determinant, 0.0)
+    sqrt_radicand = np.sqrt(radicand)
+    nu_plus = np.sqrt(np.maximum((delta + sqrt_radicand) * 0.5, 0.0))
+    nu_minus = np.sqrt(np.maximum((delta - sqrt_radicand) * 0.5, 0.0))
+
+    return (
+        _bosonic_entropy_g(output_n)
+        - _bosonic_entropy_g(nu_plus - 0.5)
+        - _bosonic_entropy_g(nu_minus - 0.5)
+    )
+
+
+def _golden_section_maximize(func, left, right, iterations=80):
+    if right <= left:
+        value = float(func(left))
+        return float(left), value
+
+    inv_phi = (np.sqrt(5.0) - 1.0) / 2.0
+    inv_phi_sq = (3.0 - np.sqrt(5.0)) / 2.0
+    x1 = left + inv_phi_sq * (right - left)
+    x2 = left + inv_phi * (right - left)
+    f1 = float(func(x1))
+    f2 = float(func(x2))
+
+    for _ in range(iterations):
+        if f1 < f2:
+            left = x1
+            x1 = x2
+            f1 = f2
+            x2 = left + inv_phi * (right - left)
+            f2 = float(func(x2))
+        else:
+            right = x2
+            x2 = x1
+            f2 = f1
+            x1 = left + inv_phi_sq * (right - left)
+            f1 = float(func(x1))
+
+    candidates = [(left, float(func(left))), (right, float(func(right))), (x1, f1), (x2, f2)]
+    best_x, best_value = max(candidates, key=lambda item: item[1])
+    return float(best_x), float(best_value)
+
+
+def gaussian_thermal_noise_capacity_lower_bound(
+        n_s,
+        eta,
+        *,
+        kappa_s=1.0,
+        n_s_env=0.0,
+        kappa_p=1.0,
+        n_p_env=0.0,
+        num_grid=1001,
+        return_details=False,
+):
+    """
+    Gaussian single-letter coherent-information lower bound for the noisy
+    single-output S-to-P benchmark.
+
+    The ideal beamsplitter convention is eta=1 for full signal transfer from
+    input S to output P. Post-beamsplitter thermal loss on P gives an effective
+    thermal-loss channel with T_eff = eta * kappa_p. Post-beamsplitter thermal
+    loss on the discarded S output does not change this single-output S-to-P
+    receiver channel; kappa_s and n_s_env are accepted only for interface
+    consistency. The result is a Gaussian single-letter lower bound, not the
+    exact thermal-loss quantum capacity in general.
+    """
+    n_s = _validate_finite_scalar("n_s", n_s, minimum=0.0)
+    eta = _validate_finite_scalar("eta", eta, minimum=0.0, maximum=1.0)
+    kappa_s = _validate_finite_scalar("kappa_s", kappa_s, minimum=0.0, maximum=1.0)
+    n_s_env = _validate_finite_scalar("n_s_env", n_s_env, minimum=0.0)
+    kappa_p = _validate_finite_scalar("kappa_p", kappa_p, minimum=0.0, maximum=1.0)
+    n_p_env = _validate_finite_scalar("n_p_env", n_p_env, minimum=0.0)
+    num_grid = int(num_grid)
+    if num_grid < 2:
+        raise ValueError("num_grid must be at least 2")
+
+    T_eff = eta * kappa_p
+    note = (
+        "For the single-output S-to-P channel, post-beamsplitter noise on the "
+        "discarded S output does not change the receiver channel. It is "
+        "included only for interface consistency."
+    )
+
+    if np.isclose(T_eff, 1.0, atol=1e-15, rtol=0.0):
+        N_B_eff = 0.0
+        max_ci = float(_bosonic_entropy_g(n_s))
+        optimal_N = n_s
+        refined = False
+    else:
+        N_B_eff = (1.0 - kappa_p) * n_p_env / (1.0 - T_eff)
+
+    if np.isclose(T_eff, 0.0, atol=1e-15, rtol=0.0):
+        max_ci = 0.0
+        optimal_N = 0.0
+        refined = False
+    elif not np.isclose(T_eff, 1.0, atol=1e-15, rtol=0.0):
+        def objective(input_energy):
+            return _gaussian_thermal_loss_coherent_information(input_energy, T_eff, N_B_eff)
+
+        grid = np.linspace(0.0, n_s, num_grid, dtype=np.float64)
+        grid_values = objective(grid)
+        best_idx = int(np.nanargmax(grid_values))
+        grid_best_N = float(grid[best_idx])
+        grid_best_ci = float(grid_values[best_idx])
+
+        if n_s == 0.0:
+            optimal_N = 0.0
+            max_ci = grid_best_ci
+            refined = False
+        else:
+            left_idx = max(best_idx - 1, 0)
+            right_idx = min(best_idx + 1, num_grid - 1)
+            left = float(grid[left_idx])
+            right = float(grid[right_idx])
+            if left == right:
+                optimal_N = grid_best_N
+                max_ci = grid_best_ci
+                refined = False
+            else:
+                refined_N, refined_ci = _golden_section_maximize(objective, left, right)
+                if refined_ci >= grid_best_ci:
+                    optimal_N = refined_N
+                    max_ci = refined_ci
+                else:
+                    optimal_N = grid_best_N
+                    max_ci = grid_best_ci
+                refined = True
+
+    capacity_lower_bound = max(float(max_ci), 0.0)
+    if not return_details:
+        return capacity_lower_bound
+
+    return {
+        "capacity_lower_bound": capacity_lower_bound,
+        "max_coherent_information": float(max_ci),
+        "optimal_input_energy": float(optimal_N),
+        "energy_constraint": float(n_s),
+        "T_eff": float(T_eff),
+        "N_B_eff": float(N_B_eff),
+        "eta": float(eta),
+        "kappa_s": float(kappa_s),
+        "n_s_env": float(n_s_env),
+        "kappa_p": float(kappa_p),
+        "n_p_env": float(n_p_env),
+        "num_grid": int(num_grid),
+        "refined": bool(refined),
+        "s_noise_affects_single_output_channel": False,
+        "note": note,
+    }
+
+
 def transduction_protocol_CoherentInfo_ECD_M_EA(eta, parameters, depth, Nt, state_initial_RS = None, state_initial_P = None):
     """
     :param r: squeezing parameter for TMS
