@@ -12,7 +12,6 @@ if str(REPO_ROOT) not in sys.path:
 from QTorch.Transduction import (
     transduction_protocol_CoherentInfo_ECD_MM_EA,
     transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise,
-    transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise_full_density_reference,
 )
 
 
@@ -67,10 +66,11 @@ def test_noisy_debug_reduced_density_matrices():
         parameters,
         depth,
         Nt,
+        initial_p_thermal_nbar=0.0,
         kappa_o=1.0,
         n_o=0.0,
         kappa_m=0.92,
-        n_m=0.04,
+        n_m=0.0,
         env_cutoff_o=Nt,
         env_cutoff_m=Nt,
         return_debug=True,
@@ -85,39 +85,60 @@ def test_noisy_debug_reduced_density_matrices():
     _assert_density_matrix("rho_RP", debug["rho_RP"])
 
 
-def test_small_cutoff_full_density_reference_agreement():
+def test_zero_initial_thermal_branch_matches_noiseless_with_debug():
     depth = 1
-    Nt = 2
+    Nt = 3
     eta = 0.25
     parameters = _parameters(depth, seed=29)
 
+    old = transduction_protocol_CoherentInfo_ECD_MM_EA(
+        eta,
+        parameters,
+        depth,
+        Nt,
+    )[0]
     new = transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
         eta,
         parameters,
         depth,
         Nt,
-        kappa_o=0.97,
-        n_o=0.01,
-        kappa_m=0.90,
-        n_m=0.03,
-        env_cutoff_o=Nt,
-        env_cutoff_m=Nt,
-        kraus_prob_tol=0.0,
+        initial_p_thermal_nbar=0.0,
+        kappa_o=1.0,
+        n_o=0.0,
+        kappa_m=1.0,
+        n_m=0.0,
+        return_debug=True,
     )[0]
-    reference = transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise_full_density_reference(
+
+    _assert_close("zero-thermal branch coherent information", new, old, atol=1e-10, rtol=1e-10)
+
+
+def test_initial_thermal_branch_trace_preservation():
+    depth = 1
+    Nt = 3
+    eta = 0.25
+    parameters = _parameters(depth, seed=30)
+
+    _, _, _, _, state_PA, debug = transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
         eta,
         parameters,
         depth,
         Nt,
-        kappa_o=0.97,
-        n_o=0.01,
-        kappa_m=0.90,
-        n_m=0.03,
-        env_cutoff_o=Nt,
-        env_cutoff_m=Nt,
-    )[0]
+        initial_p_thermal_nbar=0.03,
+        kappa_o=0.99,
+        n_o=0.0,
+        kappa_m=0.99,
+        n_m=0.0,
+        return_debug=True,
+    )
 
-    _assert_close("full-density reference coherent information", new, reference, atol=1e-8, rtol=1e-8)
+    if state_PA is not None:
+        raise AssertionError("state_PA_return should be None for a mixed initial thermal P state")
+    if debug["model"] != "initial_P_thermal_branches_plus_output_pure_loss":
+        raise AssertionError("unexpected debug model label")
+
+    _assert_density_matrix("thermal rho_P", debug["rho_P"], trace_tol=1e-7)
+    _assert_density_matrix("thermal rho_RP", debug["rho_RP"], trace_tol=1e-7)
 
 
 def test_backward_pass():
@@ -131,10 +152,11 @@ def test_backward_pass():
         parameters,
         depth,
         Nt,
+        initial_p_thermal_nbar=0.02,
         kappa_o=1.0,
         n_o=0.0,
         kappa_m=0.95,
-        n_m=0.03,
+        n_m=0.0,
         env_cutoff_o=Nt,
         env_cutoff_m=Nt,
     )[0]
@@ -152,6 +174,7 @@ def test_production_path_does_not_build_full_density_matrix():
         "rho_RSPA = state_RSPA @ dagger(state_RSPA)",
         "rho_RSPAQ = torch.kron",
         "apply_thermal_noisy_transducer(",
+        "thermal_loss_kraus_operators(",
     ]
     for text in forbidden:
         if text in source:
@@ -161,7 +184,8 @@ def test_production_path_does_not_build_full_density_matrix():
 if __name__ == "__main__":
     test_noiseless_equivalence()
     test_noisy_debug_reduced_density_matrices()
-    test_small_cutoff_full_density_reference_agreement()
+    test_zero_initial_thermal_branch_matches_noiseless_with_debug()
+    test_initial_thermal_branch_trace_preservation()
     test_backward_pass()
     test_production_path_does_not_build_full_density_matrix()
     print("thermal-noise memory-saving smoke tests passed")

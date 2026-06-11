@@ -608,6 +608,118 @@ def thermal_loss_kraus_operators(
     return [kraus for _, kraus in terms]
 
 
+def pure_loss_kraus_operators(
+        kappa,
+        cutoff,
+        *,
+        dtype=torch.complex128,
+        device=None,
+        kraus_prob_tol=1e-12,
+        max_kraus_terms=None,
+):
+    """
+    Return pure-loss Kraus operators K_l for transmissivity kappa.
+
+    K_l = sum_{n=l}^{cutoff-1}
+        sqrt(binomial(n,l) (1-kappa)^l kappa^(n-l)) |n-l><n|.
+
+    The index l is the number of photons lost.
+    """
+    cutoff = int(cutoff)
+    if cutoff <= 0:
+        raise ValueError("cutoff must be positive")
+
+    kappa_value = _scalar_float(kappa)
+    if kappa_value < 0.0 or kappa_value > 1.0:
+        raise ValueError("kappa must be in [0, 1]")
+
+    if max_kraus_terms is not None:
+        max_kraus_terms = int(max_kraus_terms)
+        if max_kraus_terms <= 0:
+            raise ValueError("max_kraus_terms must be positive or None")
+
+    eye = torch.eye(cutoff, dtype=dtype, device=device)
+    if kappa_value == 1.0:
+        return [eye]
+
+    terms = []
+    for ell in range(cutoff):
+        kraus = torch.zeros((cutoff, cutoff), dtype=dtype, device=device)
+        for n in range(ell, cutoff):
+            coeff = math.sqrt(
+                math.comb(n, ell)
+                * ((1.0 - kappa_value) ** ell)
+                * (kappa_value ** (n - ell))
+            )
+            kraus[n - ell, n] = coeff
+
+        norm_sq = torch.linalg.matrix_norm(kraus).pow(2).real
+        norm_value = _scalar_float(norm_sq)
+        if kraus_prob_tol is not None and norm_value < kraus_prob_tol:
+            continue
+        terms.append((norm_value, kraus))
+
+    if not terms:
+        return [torch.zeros((cutoff, cutoff), dtype=dtype, device=device)]
+
+    terms.sort(key=lambda item: item[0], reverse=True)
+    if max_kraus_terms is not None:
+        terms = terms[:max_kraus_terms]
+    return [kraus for _, kraus in terms]
+
+
+def thermal_fock_branches(
+        nbar,
+        cutoff,
+        *,
+        dtype=torch.complex128,
+        device=None,
+        prob_tol=1e-14,
+        max_branches=None,
+):
+    """
+    Return list of (n, sqrt_prob, prob) for a truncated thermal state.
+
+    p_n = nbar^n / (nbar + 1)^(n+1), truncated, pruned, and renormalized.
+    """
+    cutoff = int(cutoff)
+    if cutoff <= 0:
+        raise ValueError("cutoff must be positive")
+
+    nbar_value = _scalar_float(nbar)
+    if nbar_value < 0.0:
+        raise ValueError("nbar must be non-negative")
+
+    if max_branches is not None:
+        max_branches = int(max_branches)
+        if max_branches <= 0:
+            raise ValueError("max_branches must be positive or None")
+
+    real_dtype = _real_dtype_for(dtype)
+    if nbar_value == 0.0:
+        prob = torch.tensor(1.0, dtype=real_dtype, device=device)
+        return [(0, torch.sqrt(prob).to(dtype), prob)]
+
+    probs = thermal_probs(nbar, cutoff, dtype=real_dtype, device=device, normalize=True)
+    selected = []
+    for n in range(cutoff):
+        prob_value = _scalar_float(probs[n])
+        if prob_tol is None or prob_value >= prob_tol:
+            selected.append(n)
+
+    if not selected:
+        selected = [int(torch.argmax(probs).detach().cpu())]
+    if max_branches is not None:
+        selected = selected[:max_branches]
+
+    selected_probs = probs[selected]
+    selected_probs = selected_probs / selected_probs.sum()
+    branches = []
+    for n, prob in zip(selected, selected_probs):
+        branches.append((n, torch.sqrt(prob).to(dtype), prob))
+    return branches
+
+
 def apply_single_mode_thermal_loss(
         rho,
         target_mode,

@@ -91,10 +91,11 @@ def test_noisy_protocol_backward():
         parameters,
         depth,
         Nt,
+        initial_p_thermal_nbar=0.02,
         kappa_o=0.99,
         n_o=0.0,
         kappa_m=0.95,
-        n_m=0.03,
+        n_m=0.0,
         env_cutoff_o=Nt,
         env_cutoff_m=Nt,
     )
