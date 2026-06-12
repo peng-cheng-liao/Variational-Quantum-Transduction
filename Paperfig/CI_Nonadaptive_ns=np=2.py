@@ -1,8 +1,5 @@
-import argparse
 import csv
-import json
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -16,11 +13,9 @@ if str(script_dir) not in sys.path:
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 
 from matplotlib import rc
 from Quantum_Plotting import *
-from QTorch.Transduction import transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise
 
 rc('text', usetex=True)
 
@@ -34,16 +29,30 @@ n_p = 2
 energy_tol = 0.01
 
 VQT_RUN_ID = 84
-VQT_NOISE_RUN_ID = "84_noise"
+VQT_NOISE_OUTPUT_PREFIX = "84_noise"
 VQT_NOISE_INITIAL_P_NBAR = 0.1
 VQT_NOISE_KAPPA_O = 0.99
 VQT_NOISE_KAPPA_M = 0.99
-VQT_NOISE_N_O = 0.0
-VQT_NOISE_N_M = 0.0
 
 
 def eta_folder(eta):
     return f"eta={eta:.2f}"
+
+
+def format_float_for_path(x):
+    text = f"{float(x):.12g}"
+    if "e" not in text and "." not in text:
+        text += ".0"
+    return text.replace("-", "m").replace(".", "p")
+
+
+def vqt_noise_folder_name(output_prefix, initial_p_thermal_nbar, kappa_o, kappa_m):
+    return (
+        f"{output_prefix}"
+        f"_nPth={format_float_for_path(initial_p_thermal_nbar)}"
+        f"_kS={format_float_for_path(kappa_o)}"
+        f"_kP={format_float_for_path(kappa_m)}"
+    )
 
 
 def load_best_feasible_ci(run_id, etas=etalist):
@@ -58,121 +67,33 @@ def load_best_feasible_ci(run_id, etas=etalist):
     return np.array(ci_list)
 
 
-def load_selection_summary(run_id):
-    summary_path = data_dir / str(run_id) / "selection_summary.tsv"
-    if not summary_path.exists():
-        return {}
-
-    with summary_path.open(newline="") as f:
-        rows = list(csv.DictReader(f, delimiter="\t"))
-    return {row["eta_folder"]: row for row in rows}
-
-
-def infer_depth_nt(metadata, parameters):
-    source_eta_folder = metadata.get("source_eta_folder", "")
-    match = re.search(r"depth=(\d+)_Nt=(\d+)", source_eta_folder)
-    if match:
-        return int(match.group(1)), int(match.group(2))
-
-    if len(parameters) % 24 != 0:
-        raise ValueError(f"Cannot infer depth from parameter length {len(parameters)}")
-    return len(parameters) // 24, 30
-
-
-def load_vqt_best_parameters(run_id, eta):
-    folder = data_dir / str(run_id) / eta_folder(eta)
-    if not folder.is_dir():
-        raise FileNotFoundError(f"Missing eta folder: {folder}")
-
-    candidates = sorted(
-        p for p in folder.iterdir()
-        if p.is_file()
-        and p.suffix == ".npy"
-        and "param" in p.name.lower()
-        and "best" in p.name.lower()
-        and "feasible" in p.name.lower()
-    )
-    if not candidates:
-        candidates = sorted(
-            p for p in folder.iterdir()
-            if p.is_file() and p.suffix == ".npy" and "param" in p.name.lower()
+def load_vqt_noise_ci(
+        noise_folder=None,
+        etas=etalist,
+        initial_p_thermal_nbar=VQT_NOISE_INITIAL_P_NBAR,
+        kappa_o=VQT_NOISE_KAPPA_O,
+        kappa_m=VQT_NOISE_KAPPA_M,
+):
+    if noise_folder is None:
+        noise_folder = data_dir / vqt_noise_folder_name(
+            VQT_NOISE_OUTPUT_PREFIX,
+            initial_p_thermal_nbar,
+            kappa_o,
+            kappa_m,
         )
-    if len(candidates) != 1:
-        candidate_list = "\n".join(str(p) for p in candidates) or "(none)"
-        raise RuntimeError(
-            f"Expected one best/feasible parameter file in {folder}; found {len(candidates)}:\n"
-            f"{candidate_list}"
-        )
+    else:
+        noise_folder = Path(noise_folder)
+        if not noise_folder.is_absolute():
+            noise_folder = repo_dir / noise_folder
 
-    summary = load_selection_summary(run_id)
-    metadata = summary.get(eta_folder(eta), {})
-    if metadata and Path(metadata.get("parameter_source", "")).name != candidates[0].name:
-        raise RuntimeError(
-            f"Parameter file mismatch for {eta_folder(eta)}: local {candidates[0].name}, "
-            f"summary source {metadata.get('parameter_source')}"
-        )
-
-    parameters_np = np.load(candidates[0])
-    parameters = torch.as_tensor(parameters_np, dtype=torch.float64)
-    return parameters, candidates[0], metadata
-
-
-def compute_vqt_noise_ci_for_eta(eta, run_id=VQT_RUN_ID, noise_run_id=VQT_NOISE_RUN_ID):
-    parameters, parameter_path, metadata = load_vqt_best_parameters(run_id, eta)
-    depth, Nt = infer_depth_nt(metadata, parameters)
-    source_ci_path = data_dir / str(run_id) / eta_folder(eta) / "best_feasible_ci.txt"
-    source_ci = float(source_ci_path.read_text().strip())
-
-    with torch.no_grad():
-        ci, ns_input, np_input, _, _ = transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
-            eta,
-            parameters,
-            depth,
-            Nt,
-            initial_p_thermal_nbar=VQT_NOISE_INITIAL_P_NBAR,
-            kappa_o=VQT_NOISE_KAPPA_O,
-            n_o=VQT_NOISE_N_O,
-            kappa_m=VQT_NOISE_KAPPA_M,
-            n_m=VQT_NOISE_N_M,
-        )
-
-    ci_value = float(ci.detach().cpu())
-    output_dir = data_dir / str(noise_run_id) / eta_folder(eta)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "best_feasible_ci.txt").write_text(f"{ci_value}\n")
-    (output_dir / "source_parameter_file.txt").write_text(f"{parameter_path.relative_to(repo_dir)}\n")
-    (output_dir / "source_best_feasible_ci.txt").write_text(f"{source_ci}\n")
-
-    config = {
-        "source_run_id": run_id,
-        "eta": float(eta),
-        "depth": depth,
-        "Nt": Nt,
-        "initial_p_thermal_nbar": VQT_NOISE_INITIAL_P_NBAR,
-        "kappa_o": VQT_NOISE_KAPPA_O,
-        "n_o": VQT_NOISE_N_O,
-        "kappa_m": VQT_NOISE_KAPPA_M,
-        "n_m": VQT_NOISE_N_M,
-        "function": "transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise",
-        "source_parameter_file": str(parameter_path.relative_to(repo_dir)),
-        "source_best_feasible_ci": source_ci,
-        "source_eta_folder": metadata.get("source_eta_folder"),
-        "best_seed": metadata.get("best_seed"),
-        "ns_input": float(ns_input.detach().cpu()),
-        "np_input": float(np_input.detach().cpu()),
-    }
-    (output_dir / "noise_config.json").write_text(json.dumps(config, indent=2, sort_keys=True) + "\n")
-    return ci_value
-
-
-def load_or_compute_vqt_noise_ci(etas=etalist, recompute=False):
     ci_list = []
     for eta in etas:
-        path = data_dir / VQT_NOISE_RUN_ID / eta_folder(eta) / "best_feasible_ci.txt"
-        if path.exists() and not recompute:
+        path = noise_folder / eta_folder(eta) / "best_feasible_ci.txt"
+        if path.exists():
             ci_list.append(float(path.read_text().strip()))
         else:
-            ci_list.append(compute_vqt_noise_ci_for_eta(eta))
+            print(f"Missing VQT-noise CI: {path}")
+            ci_list.append(np.nan)
     return np.array(ci_list)
 
 
@@ -225,8 +146,8 @@ def plot_ECD_MM():
     plt.plot(etalist, ci_list2, label="VQT", marker='o', color=default_colors[0])
 
 
-def plot_ECD_MM_noise(recompute=False):
-    ci_noise = load_or_compute_vqt_noise_ci(etalist, recompute=recompute)
+def plot_ECD_MM_noise():
+    ci_noise = load_vqt_noise_ci()
     print("VQT-noise", ci_noise)
     plt.plot(
         etalist,
@@ -268,7 +189,6 @@ def plot_ECD_M():
 
 def plot_ECD_MM_fixedinput():
     Nr = 20
-
     etalist1 = np.around(np.arange(0.02, 0.4, 0.02), 2)
     etalist2 = np.around(np.arange(0.4, 1.0, 0.1), 1)
     etalist = np.concatenate((etalist1, etalist2))
@@ -369,21 +289,7 @@ def plot_pure_loss_capacity(n_s):
     plt.plot(etalist, cilist, label="QT", ls="--", marker="v", color=default_colors[3])
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--skip-noise", action="store_true")
-    parser.add_argument("--recompute-noise", action="store_true")
-    parser.add_argument("--only-noise-eta", type=float)
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
-    if args.only_noise_eta is not None:
-        ci_noise = compute_vqt_noise_ci_for_eta(args.only_noise_eta)
-        print(f"VQT-noise eta={args.only_noise_eta:.2f}: {ci_noise}")
-        return
-
     fig = plt.figure(figsize=(8, 6))
     fs = 20
     plt.rcParams.update({
@@ -397,8 +303,7 @@ def main():
     })
 
     plot_ECD_MM()
-    if not args.skip_noise:
-        plot_ECD_MM_noise(recompute=args.recompute_noise)
+    plot_ECD_MM_noise()
     plot_ECD_M()
     #plot_ECD_MM_fixedinput()
     # plot_GKP_n2_Nt30()
