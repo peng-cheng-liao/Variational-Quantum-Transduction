@@ -1,0 +1,19 @@
+{
+  "copied_parameter_filename": "parameters_best_feasible.npy",
+  "eta": 0.75,
+  "generated_at_utc": "2026-06-12T17:42:20.014154+00:00",
+  "generation_note": "Copied from Data_HPC/84 for self-contained noisy run-92 HPC evaluation.",
+  "original_noiseless_best_feasible_ci_path": "Data_HPC/84/eta=0.75/best_feasible_ci.txt",
+  "original_source_parameter_path": "Data_HPC/84/eta=0.75/parameters_best_feasible.npy",
+  "selection_summary": {
+    "best_feasible_ci": "2.0374133595096295",
+    "best_seed": "seed_57",
+    "eta_folder": "eta=0.75",
+    "parameter_source": "/home1/liaopeng/QuantumTransduction/84/training_parameters/eta=0.75_depth=20_Nt=30/seed_57/parameters_best_feasible.npy",
+    "score_source": "/home1/liaopeng/QuantumTransduction/84/runs/eta=0.75_depth=20_Nt=30/seed_57/best_feasible_ci.txt",
+    "source_eta_folder": "eta=0.75_depth=20_Nt=30",
+    "tie_count": "1",
+    "valid_seed_count": "200"
+  },
+  "source_run_id": 84
+}
