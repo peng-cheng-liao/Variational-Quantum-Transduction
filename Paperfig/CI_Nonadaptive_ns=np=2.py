@@ -24,7 +24,7 @@ fig_dir = repo_dir / "Figs"
 etalist = np.around(np.arange(0.05, 1.0, 0.05), 2)
 n_s = 2
 n_p = 2
-energy_tol = 0.05
+energy_tol = 0.01
 
 
 def eta_folder(eta):
@@ -197,7 +197,7 @@ def plot_GKP_n2_Nt30():
                         #    parent_dir + f"/Data_HPC/64/Transduction_CoherentInfo_GKP_Nt=30_d1={d1}_d2={d2}_j2=0_eta={eta}_ns=2_np=2_N=2000_randomization={r}_state_RS.npy")
                         #state_P = np.load(
                         #    parent_dir + f"/Data_HPC/64/Transduction_CoherentInfo_GKP_Nt=30_d1={d1}_d2={d2}_j2=0_eta={eta}_ns=2_np=2_N=2000_randomization={r}_state_P.npy")
-                        mask = np.logical_or((np.array(ns_data) >= 2.05), (np.array(np_data) >= 2.05))
+                        mask = np.logical_or((np.array(ns_data) >= n_s+energy_tol), (np.array(np_data) >= n_p+energy_tol))
                         ci_data[mask] = 0
                         ci_matrix[i, j, k, l] = np.max(ci_data)
                     except:
