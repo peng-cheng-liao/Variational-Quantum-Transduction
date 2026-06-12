@@ -1,0 +1,21 @@
+mask_threshold	2.01
+eta	randomization	d1	d2	j2	best_masked_ci	copied_files	missing_optional_files
+eta=0.05	0	2	1	0	0.0	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.10	0	2	1	0	0.0	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+eta=0.15	2	2	2	0	0.08705160730909878	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+eta=0.20	2	3	2	1	0.3093040680115533	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.25	5	2	4	2	0.49462586306838086	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.30	2	2	1	0	0.6947822755401187	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.35	6	2	1	0	0.6902539744641643	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+eta=0.40	5	2	2	1	0.5333927213282927	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+eta=0.45	0	2	2	1	0.29014986168044476	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.50	2	2	3	1	0.0024954654797171294	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+eta=0.55	5	2	2	0	0.2199201837383531	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.60	8	2	2	1	0.3888361005969583	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+eta=0.65	3	4	4	1	0.5869184251615627	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.70	0	4	4	1	0.7901801768880996	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.75	8	5	4	3	0.9925771747657188	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+eta=0.80	8	5	4	1	1.196787391461927	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.85	9	4	4	1	1.394815944282477	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+eta=0.90	6	5	4	3	1.6204956420840075	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy
+eta=0.95	7	5	4	3	1.8184244624837165	ci_list.npy,ns_list.npy,np_list.npy	parameters.npy,state_P.npy,state_RS.npy

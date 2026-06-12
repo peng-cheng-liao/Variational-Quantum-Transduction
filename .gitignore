@@ -1,6 +1,7 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+Paperfig/.mplconfig/tex.cache/
 Job Submission/*/logs/
 Job Submission/*/runs/
 Job Submission/*/training_parameters/

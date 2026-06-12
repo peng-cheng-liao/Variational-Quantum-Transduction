@@ -1,20 +1,54 @@
-import matplotlib.pyplot as plt
+import csv
 import os
+import sys
+from pathlib import Path
 
+script_dir = Path(__file__).resolve().parent
+repo_dir = script_dir.parent
+os.environ.setdefault("MPLCONFIGDIR", str(script_dir / ".mplconfig"))
+if str(repo_dir) not in sys.path:
+    sys.path.insert(0, str(repo_dir))
+
+import matplotlib.pyplot as plt
 import numpy as np
 
-from main import *
 from matplotlib import rc
 from Quantum_Plotting import *
 
 rc('text', usetex=True)
 
-current_dir = os.getcwd()
-parent_dir = os.path.dirname(current_dir)
-etalist = np.around(np.arange(0.1, 1.0, 0.1), 1)
+parent_dir = str(repo_dir)
+data_dir = repo_dir / "Data_HPC"
+fig_dir = repo_dir / "Figs"
+
+etalist = np.around(np.arange(0.05, 1.0, 0.05), 2)
 n_s = 2
 n_p = 2
 energy_tol = 0.05
+
+
+def eta_folder(eta):
+    return f"eta={eta:.2f}"
+
+
+def load_best_feasible_ci(run_id, etas=etalist):
+    ci_list = []
+    for eta in etas:
+        path = data_dir / str(run_id) / eta_folder(eta) / "best_feasible_ci.txt"
+        try:
+            ci_list.append(float(path.read_text().strip()))
+        except OSError:
+            print(f"Missing best feasible CI: {path}")
+            ci_list.append(np.nan)
+    return np.array(ci_list)
+
+
+def load_gkp_selected_ci(etas=etalist):
+    summary_path = data_dir / "64_v2" / "selection_summary.tsv"
+    with summary_path.open(newline="") as f:
+        rows = list(csv.DictReader(f, delimiter="\t"))
+    score_by_eta = {round(float(row["eta"]), 2): float(row["score"]) for row in rows}
+    return np.array([score_by_eta.get(round(float(eta), 2), np.nan) for eta in etas])
 
 
 # ECD MM
@@ -52,25 +86,10 @@ def plot_ECD_MM():
     """
 
     # New Training 84
-    etalist2 = np.around(np.arange(0.05, 1.0, 0.05), 2)
-    etalist2_str = [f"{eta:.2f}" for eta in etalist2]
-    ci_matrix = np.zeros((len(etalist2_str), 200))
-    for i, eta in enumerate(etalist2_str):
-        for r in range(200):
-            try:
-                CI_list = np.load(parent_dir + "/Data_HPC/84/eta=" + eta + f"_depth=20_Nt=30/seed_{r}/data_ci_list.npy")
-                ns_list = np.load(parent_dir + "/Data_HPC/84/eta=" + eta + f"_depth=20_Nt=30/seed_{r}/data_ns_list.npy")
-                np_list = np.load(parent_dir + "/Data_HPC/84/eta=" + eta + f"_depth=20_Nt=30/seed_{r}/data_np_list.npy")
-                mask = np.logical_or(np_list >= n_s + energy_tol, ns_list >= n_s + energy_tol)
-                CI_list[mask] = -10
-                ci_matrix[i, r] = np.max(CI_list)
-            except:
-                ci_matrix[i, r] = -10
-
-    ci_list2 = np.max(ci_matrix, axis=1)
+    ci_list2 = load_best_feasible_ci(84)
     # plt.scatter(etalist, f_list_ECD, label="ECD-MM")
     #plt.plot(np.delete(etalist, 9), np.delete(f_list_ECD, 9), label="VQT-EA", marker='o',color = default_colors[0])
-    plt.plot(etalist2, ci_list2, label="VQT", marker='o', color=default_colors[0])
+    plt.plot(etalist, ci_list2, label="VQT", marker='o', color=default_colors[0])
 
 
 def plot_ECD_M():
@@ -95,25 +114,10 @@ def plot_ECD_M():
     """
 
     # New Training 87
-    etalist2 = np.around(np.arange(0.05, 1.0, 0.05), 2)
-    etalist2_str = [f"{eta:.2f}" for eta in etalist2]
-    ci_matrix = np.zeros((len(etalist2_str), 200))
-    for i, eta in enumerate(etalist2_str):
-        for r in range(200):
-            try:
-                CI_list = np.load(parent_dir + "/Data_HPC/87/eta=" + eta + f"_depth=20_Nt=30/seed_{r}/data_ci_list.npy")
-                ns_list = np.load(parent_dir + "/Data_HPC/87/eta=" + eta + f"_depth=20_Nt=30/seed_{r}/data_ns_list.npy")
-                np_list = np.load(parent_dir + "/Data_HPC/87/eta=" + eta + f"_depth=20_Nt=30/seed_{r}/data_np_list.npy")
-                mask = np.logical_or(np_list >= n_s + energy_tol, ns_list >= n_s + energy_tol)
-                CI_list[mask] = -10
-                ci_matrix[i, r] = np.max(CI_list)
-            except:
-                ci_matrix[i, r] = -10
-
-    ci_list2 = np.max(ci_matrix, axis=1)
+    ci_list2 = load_best_feasible_ci(87)
 
     #plt.plot(etalist, f_list_ECD, label="VQT", marker="s",ls="--", color = default_colors[0])
-    plt.plot(etalist2, ci_list2, label="VQT without EA", marker="s", ls="--", color=default_colors[0])
+    plt.plot(etalist, ci_list2, label="VQT without EA", marker="s", ls="--", color=default_colors[0])
 
 
 def plot_ECD_MM_fixedinput():
@@ -205,28 +209,7 @@ def plot_GKP_n2_Nt30():
 
 
 def plot_GKP_n2_Nt30_v2():
-    etalist = np.around(np.arange(0.05, 1.0, 0.05), 2)
-    randomizationlist = np.arange(10)
-    d1_list = np.arange(2, 6, 1)
-    d2_list = np.arange(1, 5, 1)
-    ci_matrix = np.zeros((len(etalist), len(randomizationlist), len(d1_list), len(d2_list), len(d2_list)))
-    for i, eta in enumerate(etalist):
-        for j, r in enumerate(randomizationlist):
-            for k, d1 in enumerate(d1_list):
-                for l, d2 in enumerate(d2_list):
-                    for j2 in range(d2):
-                        try:
-                            filepath = parent_dir + f"/Data_HPC/64_v2/eta={eta}_d1={d1}_d2={d2}/j2={j2}_randomization={r}_"
-                            ci_data = np.load(filepath + "ci_list.npy")
-                            ns_data = np.load(filepath + "ns_list.npy")
-                            np_data = np.load(filepath + "np_list.npy")
-                            mask = np.logical_or((np.array(ns_data) >= 2.05), (np.array(np_data) >= 2.05))
-                            ci_data[mask] = 0
-                            ci_matrix[i, j, k, l, j2] = np.max(ci_data)
-                        except:
-                            ci_matrix[i, j, k, l, j2] = 0
-
-    ci_list = np.max(ci_matrix, axis=(1, 2, 3, 4))
+    ci_list = load_gkp_selected_ci()
     print("GKP", ci_list)
     plt.plot(etalist, ci_list, label="GKP-QT", ls="--", marker="*", color=default_colors[1])
 
@@ -267,5 +250,6 @@ plt.xlabel("Transmissivity" + r" $\eta$", )
 plt.ylabel("Coherent Information(CI)")
 
 plt.tight_layout()
-plt.savefig(parent_dir + "/Figs/CI_ns=np=2_Non-Adaptive.jpg", dpi=500)
+fig_dir.mkdir(exist_ok=True)
+plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive.jpg", dpi=500)
 plt.show()
