@@ -29,30 +29,10 @@ n_p = 2
 energy_tol = 0.01
 
 VQT_RUN_ID = 84
-VQT_NOISE_OUTPUT_PREFIX = "84_noise"
-VQT_NOISE_INITIAL_P_NBAR = 0.1
-VQT_NOISE_KAPPA_O = 0.99
-VQT_NOISE_KAPPA_M = 0.99
 
 
 def eta_folder(eta):
     return f"eta={eta:.2f}"
-
-
-def format_float_for_path(x):
-    text = f"{float(x):.12g}"
-    if "e" not in text and "." not in text:
-        text += ".0"
-    return text.replace("-", "m").replace(".", "p")
-
-
-def vqt_noise_folder_name(output_prefix, initial_p_thermal_nbar, kappa_o, kappa_m):
-    return (
-        f"{output_prefix}"
-        f"_nPth={format_float_for_path(initial_p_thermal_nbar)}"
-        f"_kS={format_float_for_path(kappa_o)}"
-        f"_kP={format_float_for_path(kappa_m)}"
-    )
 
 
 def load_best_feasible_ci(run_id, etas=etalist):
@@ -63,36 +43,6 @@ def load_best_feasible_ci(run_id, etas=etalist):
             ci_list.append(float(path.read_text().strip()))
         except OSError:
             print(f"Missing best feasible CI: {path}")
-            ci_list.append(np.nan)
-    return np.array(ci_list)
-
-
-def load_vqt_noise_ci(
-        noise_folder=None,
-        etas=etalist,
-        initial_p_thermal_nbar=VQT_NOISE_INITIAL_P_NBAR,
-        kappa_o=VQT_NOISE_KAPPA_O,
-        kappa_m=VQT_NOISE_KAPPA_M,
-):
-    if noise_folder is None:
-        noise_folder = data_dir / vqt_noise_folder_name(
-            VQT_NOISE_OUTPUT_PREFIX,
-            initial_p_thermal_nbar,
-            kappa_o,
-            kappa_m,
-        )
-    else:
-        noise_folder = Path(noise_folder)
-        if not noise_folder.is_absolute():
-            noise_folder = repo_dir / noise_folder
-
-    ci_list = []
-    for eta in etas:
-        path = noise_folder / eta_folder(eta) / "best_feasible_ci.txt"
-        if path.exists():
-            ci_list.append(float(path.read_text().strip()))
-        else:
-            print(f"Missing VQT-noise CI: {path}")
             ci_list.append(np.nan)
     return np.array(ci_list)
 
@@ -144,19 +94,6 @@ def plot_ECD_MM():
     # plt.scatter(etalist, f_list_ECD, label="ECD-MM")
     #plt.plot(np.delete(etalist, 9), np.delete(f_list_ECD, 9), label="VQT-EA", marker='o',color = default_colors[0])
     plt.plot(etalist, ci_list2, label="VQT", marker='o', color=default_colors[0])
-
-
-def plot_ECD_MM_noise():
-    ci_noise = load_vqt_noise_ci()
-    print("VQT-noise", ci_noise)
-    plt.plot(
-        etalist,
-        ci_noise,
-        label=r"VQT-noise",
-        marker="x",
-        ls="-.",
-        color=default_colors[4] if len(default_colors) > 4 else None,
-    )
 
 
 def plot_ECD_M():
@@ -303,7 +240,6 @@ def main():
     })
 
     plot_ECD_MM()
-    plot_ECD_MM_noise()
     plot_ECD_M()
     #plot_ECD_MM_fixedinput()
     # plot_GKP_n2_Nt30()

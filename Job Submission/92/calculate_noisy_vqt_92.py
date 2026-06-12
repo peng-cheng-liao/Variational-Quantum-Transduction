@@ -37,6 +37,24 @@ SETUP_PRESETS = [
         "n_m": 0.0,
     },
     {
+        "name": "noisy_nPth_0p01",
+        "output_subdir": "noisy_nPth=0p01_kS=0p99_kP=0p99",
+        "initial_p_nbar": 0.01,
+        "kappa_o": 0.99,
+        "kappa_m": 0.99,
+        "n_o": 0.0,
+        "n_m": 0.0,
+    },
+    {
+        "name": "noisy_nPth_0p001",
+        "output_subdir": "noisy_nPth=0p001_kS=0p99_kP=0p99",
+        "initial_p_nbar": 0.001,
+        "kappa_o": 0.99,
+        "kappa_m": 0.99,
+        "n_o": 0.0,
+        "n_m": 0.0,
+    },
+    {
         "name": "noiseless_reference",
         "output_subdir": "noiseless_nPth=0_kS=1_kP=1",
         "initial_p_nbar": 0.0,
@@ -304,7 +322,7 @@ def parse_args():
     parser.add_argument("--eta", type=float)
     parser.add_argument("--eta-index", type=int)
     parser.add_argument("--all-etas", action="store_true")
-    parser.add_argument("--output-root", type=Path, default=Path("../../Data_HPC/92"))
+    parser.add_argument("--output-root", type=Path, default=Path("Data_HPC"))
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--initial-p-nbar", type=float)
     parser.add_argument("--kappa-o", type=float)
