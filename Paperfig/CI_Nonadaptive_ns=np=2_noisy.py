@@ -22,24 +22,38 @@ data_dir = repo_dir / "Data_HPC"
 fig_dir = repo_dir / "Figs"
 
 etalist = np.around(np.arange(0.05, 1.0, 0.05), 2)
+n_s = 2
+n_p = 2
 VQT_RUN_ID = 84
 VQT_NOISE_RUN_ID = 92
 VQT_RUN92_NOISY_SETUPS = [
     {
         "folder": "noisy_nPth=0p1_kS=0p99_kP=0p99",
-        "label": r"VQT-noise ($n_P^{\rm th}=0.1$, $\kappa_S=\kappa_P=0.99$)",
+        "title": r"$n_P^{\rm th}=0.1,\ \kappa_S=\kappa_P=0.99$",
+        "nbar_p": 0.1,
+        "kappa_s": 0.99,
+        "kappa_p": 0.99,
+        "label": r"VQT-noise",
         "marker": "x",
         "ls": "-.",
     },
     {
         "folder": "noisy_nPth=0p01_kS=0p99_kP=0p99",
-        "label": r"VQT-noise ($n_P^{\rm th}=0.01$, $\kappa_S=\kappa_P=0.99$)",
+        "title": r"$n_P^{\rm th}=0.01,\ \kappa_S=\kappa_P=0.99$",
+        "nbar_p": 0.01,
+        "kappa_s": 0.99,
+        "kappa_p": 0.99,
+        "label": r"VQT-noise",
         "marker": "P",
         "ls": "-.",
     },
     {
         "folder": "noisy_nPth=0p001_kS=0p99_kP=0p99",
-        "label": r"VQT-noise ($n_P^{\rm th}=0.001$, $\kappa_S=\kappa_P=0.99$)",
+        "title": r"$n_P^{\rm th}=0.001,\ \kappa_S=\kappa_P=0.99$",
+        "nbar_p": 0.001,
+        "kappa_s": 0.99,
+        "kappa_p": 0.99,
+        "label": r"VQT-noise",
         "marker": "X",
         "ls": "-.",
     },
@@ -56,7 +70,7 @@ def load_best_feasible_ci(run_id, etas=etalist):
         path = data_dir / str(run_id) / eta_folder(eta) / "best_feasible_ci.txt"
         try:
             ci_list.append(float(path.read_text().strip()))
-        except OSError:
+        except (OSError, ValueError):
             print(f"Missing best feasible CI: {path}")
             ci_list.append(np.nan)
     return np.array(ci_list)
@@ -67,37 +81,123 @@ def load_vqt_run92_ci(setup_name, etas=etalist):
     ci_list = []
     for eta in etas:
         path = result_folder / eta_folder(eta) / "best_feasible_ci.txt"
-        if path.exists():
+        try:
             ci_list.append(float(path.read_text().strip()))
-        else:
+        except (OSError, ValueError):
             print(f"Missing VQT run-{VQT_NOISE_RUN_ID} CI: {path}")
             ci_list.append(np.nan)
     return np.array(ci_list)
 
 
-def plot_vqt():
+def g(x):
+    scalar_input = np.isscalar(x)
+    x = np.asarray(x, dtype=float)
+    x = np.maximum(x, 0.0)
+    out = np.zeros_like(x, dtype=float)
+    mask = x > 0
+    out[mask] = (x[mask] + 1.0) * np.log2(x[mask] + 1.0) - x[mask] * np.log2(x[mask])
+    if scalar_input:
+        return float(out)
+    return out
+
+
+def gaussian_thermal_loss_ci(N, eta_channel, nbar_p, kappa_p):
+    T = np.clip(kappa_p * eta_channel, 0.0, 1.0)
+    denom = 1.0 - T
+    if denom <= 1e-12:
+        denom = 1e-12
+    N_B = kappa_p * (1.0 - eta_channel) * nbar_p / denom
+
+    a = N + 0.5
+    b = T * N + (1.0 - T) * N_B + 0.5
+    c = np.sqrt(max(T * N * (N + 1.0), 0.0))
+
+    Delta = a * a + b * b - 2.0 * c * c
+    D = (a * b - c * c) ** 2
+    disc = max(Delta * Delta - 4.0 * D, 0.0)
+
+    nu_plus = np.sqrt(max((Delta + np.sqrt(disc)) / 2.0, 0.0))
+    nu_minus = np.sqrt(max((Delta - np.sqrt(disc)) / 2.0, 0.0))
+
+    n_plus = max(nu_plus - 0.5, 0.0)
+    n_minus = max(nu_minus - 0.5, 0.0)
+
+    return g(T * N + (1.0 - T) * N_B) - g(n_plus) - g(n_minus)
+
+
+def gaussian_thermal_loss_ci_bound(eta_channel, nbar_p, kappa_p, n_s=2, num_grid=1001):
+    n_grid = np.linspace(0.0, n_s, num_grid)
+    ci_values = np.array([
+        gaussian_thermal_loss_ci(N, eta_channel, nbar_p, kappa_p)
+        for N in n_grid
+    ])
+    return max(0.0, float(np.nanmax(ci_values)))
+
+
+def gaussian_qt_curve(setup, etas=etalist):
+    values = []
+    for eta in etas:
+        values.append(
+            gaussian_thermal_loss_ci_bound(
+                eta,
+                setup["nbar_p"],
+                setup["kappa_p"],
+                n_s=n_s,
+            )
+        )
+    return np.array(values)
+
+
+def gaussian_tms_ea_curve(setup, etas=etalist):
+    values = []
+    r = np.arcsinh(np.sqrt(n_p))
+    G = np.cosh(r) ** 2
+    for eta in etas:
+        eta_EA = 1 / (1 + (1 - eta) / (eta * G))
+        values.append(
+            gaussian_thermal_loss_ci_bound(
+                eta_EA,
+                setup["nbar_p"],
+                setup["kappa_p"],
+                n_s=n_s,
+            )
+        )
+    return np.array(values)
+
+
+def plot_vqt(ax, label="VQT noiseless"):
     ci_list = load_best_feasible_ci(VQT_RUN_ID)
     print("VQT", ci_list)
-    plt.plot(etalist, ci_list, label="VQT", marker="o", color=default_colors[0])
+    ax.plot(etalist, ci_list, label=label, marker="o", color=default_colors[0])
 
 
-def plot_noisy_vqt_setups():
-    for i, setup in enumerate(VQT_RUN92_NOISY_SETUPS):
-        ci_values = load_vqt_run92_ci(setup["folder"])
-        print(setup["label"], ci_values)
-        color_index = 4 + i
-        plt.plot(
-            etalist,
-            ci_values,
-            label=setup["label"],
-            marker=setup["marker"],
-            ls=setup["ls"],
-            color=default_colors[color_index] if len(default_colors) > color_index else None,
-        )
+def plot_noisy_vqt_setup(ax, setup, setup_index):
+    ci_values = load_vqt_run92_ci(setup["folder"])
+    print(f"{setup['label']} {setup['folder']}", ci_values)
+    color_index = 4 + setup_index
+    ax.plot(
+        etalist,
+        ci_values,
+        label=setup["label"],
+        marker=setup["marker"],
+        ls=setup["ls"],
+        color=default_colors[color_index] if len(default_colors) > color_index else None,
+    )
+
+
+def plot_gaussian_benchmarks(ax, setup):
+    # kappa_s is tracked in setup metadata for parity with VQT-noise, but the
+    # single-output nonadaptive Gaussian benchmark only uses the retained P mode.
+    qt_values = gaussian_qt_curve(setup)
+    tms_values = gaussian_tms_ea_curve(setup)
+    print(f"QT-noise {setup['folder']}", qt_values)
+    print(f"TMS-EA-noise {setup['folder']}", tms_values)
+    ax.plot(etalist, qt_values, label="QT-noise", ls="--", marker="v", color=default_colors[3])
+    ax.plot(etalist, tms_values, label="TMS-EA-noise", ls=":", marker="^", color=default_colors[2])
 
 
 def main():
-    fig = plt.figure(figsize=(8, 6))
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
     fs = 20
     plt.rcParams.update({
         'font.size': fs,
@@ -109,17 +209,22 @@ def main():
         'lines.markersize': 5,
     })
 
-    plot_vqt()
-    plot_noisy_vqt_setups()
+    for i, (ax, setup) in enumerate(zip(axes, VQT_RUN92_NOISY_SETUPS)):
+        plot_vqt(ax)
+        plot_noisy_vqt_setup(ax, setup, i)
+        plot_gaussian_benchmarks(ax, setup)
+        ax.set_title(setup["title"])
+        ax.set_xlabel(r"Transmissivity $\eta$")
+        ax.tick_params(axis='both', which='major')
+        ax.grid(True, alpha=0.25)
 
-    plt.legend(loc="upper left", frameon=False)
-    plt.tick_params(axis='both', which='major')
-    plt.xlabel("Transmissivity" + r" $\eta$")
-    plt.ylabel("Coherent Information(CI)")
+    axes[0].set_ylabel("Coherent Information (CI)")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False)
 
-    plt.tight_layout()
+    fig.tight_layout(rect=[0, 0, 1, 0.86])
     fig_dir.mkdir(exist_ok=True)
-    plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive_noisy.jpg", dpi=500)
+    plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive_noisy_three_panel.jpg", dpi=500)
     plt.show()
 
 
