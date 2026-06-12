@@ -97,6 +97,7 @@ A: Calcualte Entanglement Fidelity with TMSV state as fixed input in RS, MM enco
 85:GKP state match pure n=3
 86:GKP state match mix n=3
 87:Coherent Information, Non-adaptive  No-EA n=2
+88:Noisy coherent information evaluation of run 84, Non-adaptive EA n=2, initial_p_thermal_nbar=0.1, kappa_o=kappa_m=0.99
 
 A: Calculate Entanglement Fidelity with TMSV state as fixed input in RS
 A01: TMSVEF, ECD MM, Nt = 20, np = ns =4, eta 0.1~0.9,  quadratic energy penalty, QMM encoding and decoding for mode P and A
