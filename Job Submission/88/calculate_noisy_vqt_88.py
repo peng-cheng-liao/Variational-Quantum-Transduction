@@ -22,12 +22,31 @@ os.environ.setdefault("MPLCONFIGDIR", str(job_dir / ".mplconfig"))
 if str(job_dir) not in sys.path:
     sys.path.insert(0, str(job_dir))
 
-from QTorch.Transduction import transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise
-
 
 SOURCE_RUN_ID = 84
 RUN_ID = 88
 DEFAULT_ETAS = np.around(np.arange(0.05, 1.0, 0.05), 2)
+SETUP_PRESETS = [
+    {
+        "name": "noisy",
+        "output_subdir": "noisy_nPth=0p1_kS=0p99_kP=0p99",
+        "initial_p_nbar": 0.1,
+        "kappa_o": 0.99,
+        "kappa_m": 0.99,
+        "n_o": 0.0,
+        "n_m": 0.0,
+    },
+    {
+        "name": "noiseless_reference",
+        "output_subdir": "noiseless_nPth=0_kS=1_kP=1",
+        "initial_p_nbar": 0.0,
+        "kappa_o": 1.0,
+        "kappa_m": 1.0,
+        "n_o": 0.0,
+        "n_m": 0.0,
+    },
+]
+SETUP_BY_NAME = {setup["name"]: setup for setup in SETUP_PRESETS}
 
 
 def eta_folder(eta):
@@ -45,6 +64,11 @@ def scalar_float(value):
     if torch.is_tensor(value):
         return float(value.detach().cpu())
     return float(value)
+
+
+def load_thermal_noise_protocol():
+    from QTorch.Transduction import transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise
+    return transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise
 
 
 def load_source_info(eta):
@@ -108,6 +132,7 @@ def read_cached_result(eta_out_dir, eta):
         config = json.loads(config_path.read_text())
     return {
         "eta": float(eta),
+        "setup_name": config.get("setup_name", ""),
         "ci_noise": float(ci_path.read_text().strip()),
         "ns_input": config.get("ns_input", ""),
         "np_input": config.get("np_input", ""),
@@ -125,15 +150,16 @@ def calculate_eta(args, eta):
 
     parameters, parameter_path, source_info, depth, Nt = load_parameters(eta, args.device)
     print(
-        f"{eta_folder(eta)}: starting noisy CI, "
+        f"{eta_folder(eta)} [{args.setup_name}]: starting CI evaluation, "
         f"parameter_file={relative_to_repo(parameter_path)} depth={depth} Nt={Nt}",
         flush=True,
     )
 
+    thermal_noise_protocol = load_thermal_noise_protocol()
     started = time.perf_counter()
     with torch.no_grad():
         CI, ns_input, np_input, state_RS, state_PA_return = (
-            transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
+            thermal_noise_protocol(
                 float(eta),
                 parameters,
                 depth,
@@ -164,6 +190,7 @@ def calculate_eta(args, eta):
     config = {
         "run_id": RUN_ID,
         "source_run_id": SOURCE_RUN_ID,
+        "setup_name": args.setup_name,
         "eta": float(eta),
         "initial_p_thermal_nbar": args.initial_p_nbar,
         "kappa_o": args.kappa_o,
@@ -191,12 +218,13 @@ def calculate_eta(args, eta):
     )
 
     print(
-        f"{eta_folder(eta)}: finished CI={ci_value:.12g} "
+        f"{eta_folder(eta)} [{args.setup_name}]: finished CI={ci_value:.12g} "
         f"ns={ns_value:.12g} np={np_value:.12g} elapsed={elapsed:.1f}s",
         flush=True,
     )
     return {
         "eta": float(eta),
+        "setup_name": args.setup_name,
         "ci_noise": ci_value,
         "ns_input": ns_value,
         "np_input": np_value,
@@ -222,6 +250,29 @@ def select_etas(args):
     return DEFAULT_ETAS
 
 
+def select_setup(args):
+    if args.setup is not None and args.setup_index is not None:
+        raise SystemExit("Use only one of --setup or --setup-index.")
+
+    if args.setup_index is not None:
+        if args.setup_index < 0 or args.setup_index >= len(SETUP_PRESETS):
+            raise SystemExit(
+                f"--setup-index must be in [0, {len(SETUP_PRESETS) - 1}], "
+                f"got {args.setup_index}"
+            )
+        setup = SETUP_PRESETS[args.setup_index]
+    else:
+        setup = SETUP_BY_NAME[args.setup or "noisy"]
+
+    args.setup_name = setup["name"]
+    for attr in ("initial_p_nbar", "kappa_o", "kappa_m", "n_o", "n_m"):
+        if getattr(args, attr) is None:
+            setattr(args, attr, setup[attr])
+
+    if args.output_dir is None:
+        args.output_dir = args.output_root / setup["output_subdir"]
+
+
 def write_summary(output_dir, rows):
     if not rows:
         return None
@@ -229,6 +280,7 @@ def write_summary(output_dir, rows):
     path = output_dir / "noise_ci_summary.tsv"
     fieldnames = [
         "eta",
+        "setup_name",
         "ci_noise",
         "ns_input",
         "np_input",
@@ -246,15 +298,19 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Evaluate noisy CI for run-84 best VQT parameters as run 88."
     )
+    parser.add_argument("--list-setups", action="store_true")
+    parser.add_argument("--setup", choices=sorted(SETUP_BY_NAME))
+    parser.add_argument("--setup-index", type=int)
     parser.add_argument("--eta", type=float)
     parser.add_argument("--eta-index", type=int)
     parser.add_argument("--all-etas", action="store_true")
-    parser.add_argument("--output-dir", type=Path, default=Path("../../Data_HPC/88"))
-    parser.add_argument("--initial-p-nbar", type=float, default=0.1)
-    parser.add_argument("--kappa-o", type=float, default=0.99)
-    parser.add_argument("--kappa-m", type=float, default=0.99)
-    parser.add_argument("--n-o", type=float, default=0.0)
-    parser.add_argument("--n-m", type=float, default=0.0)
+    parser.add_argument("--output-root", type=Path, default=Path("../../Data_HPC/88"))
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--initial-p-nbar", type=float)
+    parser.add_argument("--kappa-o", type=float)
+    parser.add_argument("--kappa-m", type=float)
+    parser.add_argument("--n-o", type=float)
+    parser.add_argument("--n-m", type=float)
     parser.add_argument("--kraus-prob-tol", type=float, default=1e-12)
     parser.add_argument("--initial-thermal-prob-tol", type=float, default=1e-14)
     parser.add_argument("--max-kraus-terms", type=int)
@@ -264,8 +320,25 @@ def parse_args():
     parser.add_argument("--device", default="cpu")
     args = parser.parse_args()
 
+    if args.list_setups:
+        for idx, setup in enumerate(SETUP_PRESETS):
+            print(
+                f"{idx}: {setup['name']} "
+                f"initial_p_nbar={setup['initial_p_nbar']} "
+                f"kappa_o={setup['kappa_o']} kappa_m={setup['kappa_m']} "
+                f"n_o={setup['n_o']} n_m={setup['n_m']} "
+                f"output_subdir={setup['output_subdir']}",
+                flush=True,
+            )
+        raise SystemExit(0)
+
     if not local_qtorch_dir.is_dir():
         raise SystemExit(f"Missing local QTorch copy: {local_qtorch_dir}")
+
+    if not args.output_root.is_absolute():
+        args.output_root = (job_dir / args.output_root).resolve()
+
+    select_setup(args)
 
     if not args.output_dir.is_absolute():
         args.output_dir = (job_dir / args.output_dir).resolve()
@@ -282,6 +355,13 @@ def main():
     etas = select_etas(args)
     print(f"Job directory: {job_dir}", flush=True)
     print(f"Using local QTorch: {local_qtorch_dir}", flush=True)
+    print(f"Setup: {args.setup_name}", flush=True)
+    print(
+        f"Noise parameters: initial_p_nbar={args.initial_p_nbar} "
+        f"kappa_o={args.kappa_o} kappa_m={args.kappa_m} "
+        f"n_o={args.n_o} n_m={args.n_m}",
+        flush=True,
+    )
     print(f"Output directory: {relative_to_repo(args.output_dir)}", flush=True)
     print(f"Etas: {' '.join(eta_folder(eta) for eta in etas)}", flush=True)
 
@@ -294,7 +374,7 @@ def main():
                 f"depth={depth} Nt={Nt} best_seed={selection.get('best_seed', '')}",
                 flush=True,
             )
-        print("Dry run only; no noisy CI values computed.", flush=True)
+        print("Dry run only; no CI values computed.", flush=True)
         return
 
     rows = [calculate_eta(args, eta) for eta in etas]

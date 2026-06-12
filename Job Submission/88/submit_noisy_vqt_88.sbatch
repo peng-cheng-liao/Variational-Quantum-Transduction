@@ -9,7 +9,7 @@
 #SBATCH --job-name=noisy_vqt_88
 #SBATCH --output=logs/noisy_vqt_88_%A_%a.out
 #SBATCH --error=logs/noisy_vqt_88_%A_%a.err
-#SBATCH --array=0-18
+#SBATCH --array=0-37
 
 set -euo pipefail
 cd "$SLURM_SUBMIT_DIR"
@@ -29,12 +29,20 @@ export MPLBACKEND=Agg
 export MPLCONFIGDIR="${SLURM_SUBMIT_DIR}/.mplconfig"
 mkdir -p "${MPLCONFIGDIR}"
 
+NUM_ETAS=19
+SETUPS=(noisy noiseless_reference)
+
+TASK_ID="${SLURM_ARRAY_TASK_ID}"
+SETUP_IDX=$(( TASK_ID / NUM_ETAS ))
+ETA_IDX=$(( TASK_ID % NUM_ETAS ))
+SETUP="${SETUPS[$SETUP_IDX]}"
+
 echo "Running noisy VQT run 88:"
 echo "  SLURM_ARRAY_TASK_ID = ${SLURM_ARRAY_TASK_ID}"
 echo "  SLURM_CPUS_PER_TASK = ${SLURM_CPUS_PER_TASK}"
-echo "  output_dir          = ../../Data_HPC/88"
-echo "  initial_p_nbar      = 0.1"
-echo "  kappa_o             = 0.99"
-echo "  kappa_m             = 0.99"
+echo "  setup               = ${SETUP}"
+echo "  setup_index         = ${SETUP_IDX}"
+echo "  eta_index           = ${ETA_IDX}"
+echo "  output_root         = ../../Data_HPC/88"
 
-python calculate_noisy_vqt_88.py --eta-index "${SLURM_ARRAY_TASK_ID}"
+python calculate_noisy_vqt_88.py --setup-index "${SETUP_IDX}" --eta-index "${ETA_IDX}"
