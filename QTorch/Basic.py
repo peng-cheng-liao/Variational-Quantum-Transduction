@@ -1478,6 +1478,42 @@ def GKP_square_lattice_approximate(Nt, d, j, delta, grid_range):
     return state
 
 
+def canonical_unitary_with_first_column(state):
+    """
+    Deterministically complete a ket into a unitary with that ket as column 0.
+
+    ``GKP_square_lattice_approximate`` is a state constructor, not a physical
+    preparation unitary. This helper fixes a canonical QR-completion convention
+    for noisy thermal-branch propagation.
+    """
+    if state.ndim == 1:
+        state = state.reshape(-1, 1)
+    elif state.ndim != 2 or state.shape[1] != 1:
+        raise ValueError("state must have shape (Nt,) or (Nt, 1)")
+
+    dtype = torch.promote_types(state.dtype, torch.complex128)
+    state = state.to(dtype=dtype)
+    norm = torch.norm(state)
+    if float(norm.detach().cpu()) == 0.0:
+        raise ValueError("state cannot be the zero vector")
+
+    state_normalized = state / norm
+    Nt = state_normalized.shape[0]
+    completion = torch.eye(Nt, dtype=dtype, device=state_normalized.device)
+    completion[:, :1] = state_normalized
+
+    Q, _ = torch.linalg.qr(completion)
+    overlap = (Q[:, :1].conj().T @ state_normalized).squeeze()
+    abs_overlap = torch.abs(overlap)
+    if float(abs_overlap.detach().cpu()) > 0.0:
+        Q[:, 0] = Q[:, 0] * (overlap / abs_overlap)
+
+    U = Q.clone()
+    U[:, :1] = state_normalized
+    # Check: torch.norm(U[:, :1] - state_normalized) should be small.
+    return U
+
+
 def GKP_hex_lattice_approximate(Nt, d, j, delta, r_hex, phi1_hex, phi2_hex, grid_range):
     R1 = phase_rotation(phi1_hex, Nt)
     S = squeezed_operator(r_hex, torch.tensor(0), Nt)
@@ -1485,6 +1521,16 @@ def GKP_hex_lattice_approximate(Nt, d, j, delta, r_hex, phi1_hex, phi2_hex, grid
     state = GKP_square_lattice_approximate(Nt, d, j, delta, grid_range)
     state_hex = R2 @ S @ R1 @ state
     return state_hex / torch.norm(state_hex)
+
+
+def GKP_hex_lattice_approximate_unitary(Nt, d, j, delta, r_hex, phi1_hex, phi2_hex, grid_range):
+    state_square = GKP_square_lattice_approximate(Nt, d, j, delta, grid_range)
+    U_square = canonical_unitary_with_first_column(state_square)
+    R1 = phase_rotation(phi1_hex, Nt)
+    S = squeezed_operator(r_hex, torch.tensor(0), Nt)
+    R2 = phase_rotation(phi2_hex, Nt)
+    U_gkp = R2 @ S @ R1 @ U_square
+    return U_gkp
 
 
 def partial_measurement(psi: torch.Tensor,

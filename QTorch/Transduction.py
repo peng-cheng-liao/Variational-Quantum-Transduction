@@ -2552,6 +2552,169 @@ def transduction_protocol_CoherentInfo_GKP2(eta, d1, d2, j2, parameters, Nt, NR=
     return CI, ns_input, np_input, state_RS, state_P
 
 
+def transduction_protocol_CoherentInfo_GKP2_thermal_noise(
+        eta,
+        d1,
+        d2,
+        j2,
+        parameters,
+        Nt,
+        NR=10,
+        *,
+        initial_p_thermal_nbar=0.1,
+        kappa_o=0.99,
+        n_o=0.0,
+        kappa_m=0.99,
+        n_m=0.0,
+        kraus_prob_tol=1e-12,
+        max_kraus_terms=None,
+        initial_thermal_prob_tol=1e-14,
+        max_initial_thermal_branches=None,
+        return_debug=False,
+):
+    """
+    Noisy GKP2 coherent-information protocol.
+
+    The model matches the noisy VQT branch convention: initial thermal Fock
+    branches in P, a fixed GKP preparation unitary applied to each branch,
+    ideal S-P beamsplitter transduction, then pure output loss on S and P.
+    Because the resulting channel is mixed/noisy, coherent information is
+    computed as S(rho_P) - S(rho_RP), not S(rho_P) - S(rho_S).
+    """
+    initial_p_thermal_nbar_value = _coherent_info_scalar_float(initial_p_thermal_nbar)
+    if _coherent_info_scalar_float(n_o) != 0.0 or _coherent_info_scalar_float(n_m) != 0.0:
+        raise NotImplementedError(
+            "The GKP2 thermal-noise protocol uses pure output loss only "
+            "(n_o == 0 and n_m == 0). Use initial_p_thermal_nbar for initial "
+            "thermal occupation in P."
+        )
+
+    if (
+            initial_p_thermal_nbar_value == 0.0
+            and is_noiseless_thermal_loss(kappa_o, n_o)
+            and is_noiseless_thermal_loss(kappa_m, n_m)
+            and not return_debug
+    ):
+        return transduction_protocol_CoherentInfo_GKP2(eta, d1, d2, j2, parameters, Nt, NR)
+
+    theta = np.arcsin(np.sqrt(eta))
+    delta1, r_hex1, phi1_hex, phi2_hex = parameters[0:4]
+    delta2, r_hex2, phi3_hex, phi4_hex = parameters[4:8]
+
+    state_RS = torch.zeros(NR * Nt, 1, dtype=torch.complex128)
+    for i in range(d1):
+        state_R = number_state(i, NR)
+        state_S = GKP_hex_lattice_approximate(Nt, d1, i, delta1, r_hex1, phi1_hex, phi2_hex, 5)
+        state_RS = state_RS + torch.kron(state_R, state_S).reshape(-1, 1)
+    state_RS = state_RS / torch.norm(state_RS)
+
+    rho_S = partial_trace_torch(state_RS, shape=[NR, Nt], sel=[1])
+    ns_input = energy_n_M(rho_S, Nt)
+
+    U_gkp_P = GKP_hex_lattice_approximate_unitary(
+        Nt, d2, j2, delta2, r_hex2, phi3_hex, phi4_hex, 5
+    ).to(dtype=state_RS.dtype, device=state_RS.device)
+    state_P_return = U_gkp_P @ number_state(0, Nt).to(dtype=state_RS.dtype, device=state_RS.device)
+
+    # This checks the canonical completion convention against the original
+    # state constructor. Thermal branches below must not be renormalized:
+    # branch probabilities are encoded by sqrt_pn.
+    state_P_reference = GKP_hex_lattice_approximate(
+        Nt, d2, j2, delta2, r_hex2, phi3_hex, phi4_hex, 5
+    ).to(dtype=state_RS.dtype, device=state_RS.device)
+    prep_state_error = torch.norm(state_P_return / torch.norm(state_P_return) - state_P_reference)
+
+    thermal_branches = thermal_fock_branches(
+        initial_p_thermal_nbar,
+        Nt,
+        dtype=state_RS.dtype,
+        device=state_RS.device,
+        prob_tol=initial_thermal_prob_tol,
+        max_branches=max_initial_thermal_branches,
+    )
+    initial_thermal_prob_sum = torch.stack([prob for _, _, prob in thermal_branches]).sum()
+
+    kraus_s = pure_loss_kraus_operators(
+        kappa_o,
+        Nt,
+        dtype=state_RS.dtype,
+        device=state_RS.device,
+        kraus_prob_tol=kraus_prob_tol,
+        max_kraus_terms=max_kraus_terms,
+    )
+    kraus_p = pure_loss_kraus_operators(
+        kappa_m,
+        Nt,
+        dtype=state_RS.dtype,
+        device=state_RS.device,
+        kraus_prob_tol=kraus_prob_tol,
+        max_kraus_terms=max_kraus_terms,
+    )
+
+    U_BS = unitary_beam_splitter(-theta, Nt).to(dtype=state_RS.dtype, device=state_RS.device)
+    dims_RSP = [NR, Nt, Nt]
+    rho_P = torch.zeros((Nt, Nt), dtype=state_RS.dtype, device=state_RS.device)
+    rho_RP = torch.zeros((NR * Nt, NR * Nt), dtype=state_RS.dtype, device=state_RS.device)
+    np_input = torch.zeros((), dtype=state_RS.real.dtype, device=state_RS.device)
+    branch_count = 0
+    skipped_branch_count = 0
+
+    for thermal_n, sqrt_pn, pn in thermal_branches:
+        state_P_n = U_gkp_P @ number_state(thermal_n, Nt).to(dtype=state_RS.dtype, device=state_RS.device)
+        np_input = np_input + pn.to(dtype=np_input.dtype, device=np_input.device) * energy_n_M(state_P_n, Nt)
+        branch_RSP = sqrt_pn.to(dtype=state_RS.dtype, device=state_RS.device) * torch.kron(
+            state_RS.reshape(-1, 1),
+            state_P_n.reshape(-1, 1),
+        )
+
+        branch_RSP = branch_RSP.reshape(NR, Nt * Nt)
+        branch_RSP = torch.einsum("ij,kj->ki", U_BS, branch_RSP).reshape(-1, 1)
+
+        for K_s in kraus_s:
+            branch_after_s = apply_single_mode_operator_to_state(
+                branch_RSP, K_s, target_mode=1, dims=dims_RSP
+            )
+            for K_p in kraus_p:
+                branch_after_sp = apply_single_mode_operator_to_state(
+                    branch_after_s, K_p, target_mode=2, dims=dims_RSP
+                )
+                branch_norm_sq = torch.sum(torch.abs(branch_after_sp) ** 2).real
+                if kraus_prob_tol is not None and float(branch_norm_sq.detach().cpu()) < kraus_prob_tol:
+                    skipped_branch_count += 1
+                    continue
+
+                rho_P_i = partial_trace_torch(branch_after_sp, shape=dims_RSP, sel=[2])
+                rho_RP_i = partial_trace_torch(branch_after_sp, shape=dims_RSP, sel=[0, 2])
+                rho_P = rho_P + rho_P_i
+                rho_RP = rho_RP + rho_RP_i.reshape(NR * Nt, NR * Nt)
+                branch_count += 1
+
+    rho_P = 0.5 * (rho_P + rho_P.conj().T)
+    rho_RP = 0.5 * (rho_RP + rho_RP.conj().T)
+
+    CI = von_neumann_entropy(rho_P) - von_neumann_entropy(rho_RP)
+
+    if return_debug:
+        debug = {
+            "rho_P": rho_P,
+            "rho_RP": rho_RP,
+            "initial_p_thermal_nbar": initial_p_thermal_nbar,
+            "initial_thermal_branch_count": len(thermal_branches),
+            "initial_thermal_prob_sum": initial_thermal_prob_sum,
+            "pure_loss_terms_s": len(kraus_s),
+            "pure_loss_terms_p": len(kraus_p),
+            "branch_count": branch_count,
+            "skipped_branch_count": skipped_branch_count,
+            "trace_rho_P": torch.trace(rho_P),
+            "trace_rho_RP": torch.trace(rho_RP),
+            "prep_state_error": prep_state_error,
+            "model": "canonical_unitary_completion_GKP_preparation_plus_initial_P_thermal_branches_plus_output_pure_loss",
+        }
+        return CI, ns_input, np_input, state_RS, state_P_return, debug
+
+    return CI, ns_input, np_input, state_RS, state_P_return
+
+
 def transduction_protocol_TMS_mixed_v2(rho_signal, eta, r, rprime, Nt):
     """
 
