@@ -12,7 +12,15 @@
 #SBATCH --array=0-75
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+SUBMIT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
+if [ -f "${SUBMIT_DIR}/calculate_noisy_gkp_93.py" ]; then
+  SCRIPT_DIR="${SUBMIT_DIR}"
+elif [ -f "${SUBMIT_DIR}/Job Submission/93/calculate_noisy_gkp_93.py" ]; then
+  SCRIPT_DIR="${SUBMIT_DIR}/Job Submission/93"
+else
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 cd "${SCRIPT_DIR}"
 
 module purge
