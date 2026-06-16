@@ -48,7 +48,7 @@ def load_best_feasible_ci(run_id, etas=etalist):
 
 
 def load_gkp_selected_ci(etas=etalist):
-    summary_path = data_dir / "64_v2" / "selection_summary.tsv"
+    summary_path = data_dir / "64_v2_2" / "selection_summary.tsv"
     with summary_path.open(newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
     score_by_eta = {round(float(row["eta"]), 2): float(row["score"]) for row in rows}
