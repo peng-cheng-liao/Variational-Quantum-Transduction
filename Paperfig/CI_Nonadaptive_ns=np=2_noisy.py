@@ -26,6 +26,7 @@ n_s = 2
 n_p = 2
 VQT_RUN_ID = 84
 VQT_NOISE_RUN_ID = 92
+GKP_NOISE_RUN_ID = 93
 VQT_RUN92_NOISY_SETUPS = [
     {
         "folder": "noisy_nPth=0p1_kS=0p99_kP=0p99",
@@ -85,6 +86,19 @@ def load_vqt_run92_ci(setup_name, etas=etalist):
             ci_list.append(float(path.read_text().strip()))
         except (OSError, ValueError):
             print(f"Missing VQT run-{VQT_NOISE_RUN_ID} CI: {path}")
+            ci_list.append(np.nan)
+    return np.array(ci_list)
+
+
+def load_gkp_run93_ci(setup_name, etas=etalist):
+    result_folder = data_dir / str(GKP_NOISE_RUN_ID) / setup_name
+    ci_list = []
+    for eta in etas:
+        path = result_folder / eta_folder(eta) / "best_feasible_ci.txt"
+        try:
+            ci_list.append(float(path.read_text().strip()))
+        except (OSError, ValueError):
+            print(f"Missing GKP run-{GKP_NOISE_RUN_ID} CI: {path}")
             ci_list.append(np.nan)
     return np.array(ci_list)
 
@@ -185,6 +199,19 @@ def plot_noisy_vqt_setup(ax, setup, setup_index):
     )
 
 
+def plot_noisy_gkp_setup(ax, setup):
+    ci_values = load_gkp_run93_ci(setup["folder"])
+    print(f"GKP-noise {setup['folder']}", ci_values)
+    ax.plot(
+        etalist,
+        ci_values,
+        label="GKP-noise",
+        marker="D",
+        ls="-",
+        color=default_colors[1] if len(default_colors) > 1 else None,
+    )
+
+
 def plot_gaussian_benchmarks(ax, setup):
     # kappa_s is tracked in setup metadata for parity with VQT-noise, but the
     # single-output nonadaptive Gaussian benchmark only uses the retained P mode.
@@ -212,6 +239,7 @@ def main():
     for i, (ax, setup) in enumerate(zip(axes, VQT_RUN92_NOISY_SETUPS)):
         plot_vqt(ax)
         plot_noisy_vqt_setup(ax, setup, i)
+        plot_noisy_gkp_setup(ax, setup)
         plot_gaussian_benchmarks(ax, setup)
         ax.set_title(setup["title"])
         ax.set_xlabel(r"Transmissivity $\eta$")
@@ -220,9 +248,9 @@ def main():
 
     axes[0].set_ylabel("Coherent Information (CI)")
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False)
+    fig.legend(handles, labels, loc="upper center", ncol=5, frameon=False)
 
-    fig.tight_layout(rect=[0, 0, 1, 0.86])
+    fig.tight_layout(rect=[0, 0, 1, 0.84])
     fig_dir.mkdir(exist_ok=True)
     plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive_noisy_three_panel.jpg", dpi=500)
     plt.show()
