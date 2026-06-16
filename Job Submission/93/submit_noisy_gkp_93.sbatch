@@ -12,8 +12,10 @@
 #SBATCH --array=0-75
 
 # Usage from this folder:
-#   Full rerun for all four setups and all etas:
+#   Full run for all four setups and all etas, reusing existing outputs:
 #     sbatch submit_noisy_gkp_93.sbatch
+#   Full rerun for all four setups and all etas, overwriting existing outputs:
+#     sbatch --export=ALL,RECOMPUTE=1 submit_noisy_gkp_93.sbatch
 #   Only noiseless validation, all etas:
 #     python -u calculate_noisy_gkp_93.py --setup noiseless_reference --all-etas --validate-zero-noise --recompute
 #   One eta/debug run:
@@ -64,11 +66,18 @@ echo "  setup               = ${SETUP}"
 echo "  setup_index         = ${SETUP_IDX}"
 echo "  eta_index           = ${ETA_IDX}"
 echo "  output_root         = Data"
+echo "  recompute           = ${RECOMPUTE:-0}"
+
+EXTRA_ARGS=()
+if [ "${RECOMPUTE:-0}" = "1" ]; then
+  EXTRA_ARGS+=(--recompute)
+fi
 
 python -u calculate_noisy_gkp_93.py \
   --setup-index "${SETUP_IDX}" \
   --eta-index "${ETA_IDX}" \
-  --num-threads "${SLURM_CPUS_PER_TASK}"
+  --num-threads "${SLURM_CPUS_PER_TASK}" \
+  "${EXTRA_ARGS[@]}"
 
 # For fast convergence tests only, add:
 #   --max-initial-thermal-branches 3 --max-kraus-terms 3 --initial-thermal-prob-tol 1e-5 --kraus-prob-tol 1e-8
