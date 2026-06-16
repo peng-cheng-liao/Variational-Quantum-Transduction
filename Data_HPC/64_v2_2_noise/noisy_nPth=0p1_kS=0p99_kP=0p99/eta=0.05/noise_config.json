@@ -1,0 +1,19 @@
+{
+  "NR": 10,
+  "Nt": 30,
+  "d1": 5,
+  "d2": 3,
+  "elapsed_seconds": 6.739170874992851,
+  "eta": 0.05,
+  "function": "transduction_protocol_CoherentInfo_GKP2_thermal_noise",
+  "initial_p_thermal_nbar": 0.1,
+  "j2": 2,
+  "kappa_m": 0.99,
+  "kappa_o": 0.99,
+  "n_m": 0.0,
+  "n_o": 0.0,
+  "np_input": 2.030750017893044,
+  "ns_input": 1.4161140654117705,
+  "source_parameter_file": "Data_HPC/64_v2_2/eta=0.05/parameters.npy",
+  "source_run_id": "64_v2_2"
+}
