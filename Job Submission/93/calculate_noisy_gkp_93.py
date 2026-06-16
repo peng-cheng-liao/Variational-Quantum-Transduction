@@ -94,6 +94,12 @@ def scalar_float(value):
     return float(value)
 
 
+def optional_float(value):
+    if value in ("", None):
+        return None
+    return float(value)
+
+
 def load_source_info(eta):
     path = parameter_dir / eta_folder(eta) / "source_info.json"
     if not path.exists():
@@ -114,10 +120,10 @@ def load_protocol_settings(source_info):
     source_d2 = _selection_int(source_info, "d2", DEFAULT_D2)
     source_j2 = _selection_int(source_info, "j2", DEFAULT_J2)
     Nt = int(source_info.get("gkp_constants", {}).get("Nt", DEFAULT_NT))
-    d1 = DEFAULT_D1
-    d2 = DEFAULT_D2
-    j2 = DEFAULT_J2
-    NR = DEFAULT_NR
+    d1 = source_d1
+    d2 = source_d2
+    j2 = source_j2
+    NR = d1
 
     if not (0 <= j2 < d2):
         raise ValueError(f"Invalid GKP branch index j2={j2} for d2={d2}")
@@ -136,6 +142,7 @@ def load_protocol_settings(source_info):
             DEFAULT_D2,
             DEFAULT_J2,
         ),
+        "uses_source_protocol_settings": True,
     }
 
 
@@ -157,6 +164,34 @@ def load_parameters(eta, device):
     return parameters, path, source_info, protocol_settings
 
 
+def source_score(source_info, *, required=False):
+    selection = source_info.get("selection_summary", {})
+    score = optional_float(selection.get("score", ""))
+    if required and score is None:
+        raise ValueError("Missing source_info['selection_summary']['score']")
+    return score
+
+
+def validate_zero_noise_args(args):
+    expected = {
+        "initial_p_nbar": 0.0,
+        "kappa_o": 1.0,
+        "kappa_m": 1.0,
+        "n_o": 0.0,
+        "n_m": 0.0,
+    }
+    mismatches = []
+    for attr, expected_value in expected.items():
+        actual_value = getattr(args, attr)
+        if actual_value != expected_value:
+            mismatches.append(f"{attr}={actual_value} (expected {expected_value})")
+    if mismatches:
+        raise SystemExit(
+            "--validate-zero-noise must be run with noiseless noise settings: "
+            + ", ".join(mismatches)
+        )
+
+
 def read_cached_result(eta_out_dir, eta):
     ci_path = eta_out_dir / "best_feasible_ci.txt"
     config_path = eta_out_dir / "noise_config.json"
@@ -174,6 +209,9 @@ def read_cached_result(eta_out_dir, eta):
         "j2": config.get("j2", ""),
         "Nt": config.get("Nt", ""),
         "NR": config.get("NR", ""),
+        "source_score": config.get("source_score", ""),
+        "zero_noise_abs_error": config.get("zero_noise_abs_error", ""),
+        "zero_noise_validation_passed": config.get("zero_noise_validation_passed", ""),
         "elapsed_seconds": config.get("elapsed_seconds", ""),
         "output_file": config.get("output_file", ""),
         "output_folder": relative_to_repo(eta_out_dir.parent),
@@ -202,15 +240,23 @@ def calculate_eta(args, eta):
     eta_out_dir = args.output_dir / eta_folder(eta)
     ci_path = eta_out_dir / "best_feasible_ci.txt"
     if ci_path.exists() and not args.recompute:
+        if args.validate_zero_noise:
+            raise SystemExit(
+                f"{eta_folder(eta)}: existing output requires --recompute for "
+                "--validate-zero-noise so noise_config.json records fresh diagnostics"
+            )
         print(f"{eta_folder(eta)}: cache hit {relative_to_repo(ci_path)}", flush=True)
         return read_cached_result(eta_out_dir, eta)
 
     parameters, parameter_path, source_info, protocol = load_parameters(eta, args.device)
+    selected_source_score = source_score(source_info, required=args.validate_zero_noise)
     print(
         f"{eta_folder(eta)} [{args.setup_name}]: starting CI evaluation, "
         f"parameter_file={relative_to_repo(parameter_path)} "
         f"d1={protocol['d1']} d2={protocol['d2']} j2={protocol['j2']} "
-        f"Nt={protocol['Nt']} NR={protocol['NR']} output_file={relative_to_repo(ci_path)}",
+        f"Nt={protocol['Nt']} NR={protocol['NR']} "
+        f"source_score={selected_source_score if selected_source_score is not None else ''} "
+        f"output_file={relative_to_repo(ci_path)}",
         flush=True,
     )
 
@@ -247,6 +293,11 @@ def calculate_eta(args, eta):
     ci_value = scalar_float(CI)
     ns_value = scalar_float(ns_input)
     np_value = scalar_float(np_input)
+    zero_noise_abs_error = None
+    zero_noise_validation_passed = None
+    if args.validate_zero_noise:
+        zero_noise_abs_error = abs(ci_value - selected_source_score)
+        zero_noise_validation_passed = zero_noise_abs_error <= args.zero_noise_tolerance
 
     eta_out_dir.mkdir(parents=True, exist_ok=True)
     ci_path.write_text(f"{ci_value}\n")
@@ -276,6 +327,8 @@ def calculate_eta(args, eta):
         "source_d1": protocol["source_d1"],
         "source_d2": protocol["source_d2"],
         "source_j2": protocol["source_j2"],
+        "source_score": selected_source_score,
+        "uses_source_protocol_settings": protocol["uses_source_protocol_settings"],
         "source_metadata_differs_from_job64_defaults": protocol[
             "source_metadata_differs_from_job64_defaults"
         ],
@@ -292,6 +345,15 @@ def calculate_eta(args, eta):
         "finish_time": finish_time.isoformat(),
         "elapsed_seconds": elapsed,
     }
+    if args.validate_zero_noise:
+        config.update(
+            {
+                "recomputed_zero_noise_ci": ci_value,
+                "zero_noise_abs_error": zero_noise_abs_error,
+                "zero_noise_validation_passed": zero_noise_validation_passed,
+                "zero_noise_tolerance": args.zero_noise_tolerance,
+            }
+        )
     for key in (
         "prep_state_error",
         "trace_rho_P",
@@ -316,6 +378,16 @@ def calculate_eta(args, eta):
         f"elapsed={elapsed:.1f}s",
         flush=True,
     )
+    if args.validate_zero_noise:
+        status = "PASS" if zero_noise_validation_passed else "FAIL"
+        print(
+            f"{eta_folder(eta)} zero-noise validation {status}: "
+            f"eta={float(eta):.2f} source_score={selected_source_score:.12g} "
+            f"recomputed_score={ci_value:.12g} abs_error={zero_noise_abs_error:.3g} "
+            f"(d1,d2,j2,NR)=({protocol['d1']},{protocol['d2']},"
+            f"{protocol['j2']},{protocol['NR']})",
+            flush=True,
+        )
     return {
         "eta": float(eta),
         "setup_name": args.setup_name,
@@ -327,6 +399,9 @@ def calculate_eta(args, eta):
         "j2": protocol["j2"],
         "Nt": protocol["Nt"],
         "NR": protocol["NR"],
+        "source_score": selected_source_score,
+        "zero_noise_abs_error": zero_noise_abs_error,
+        "zero_noise_validation_passed": zero_noise_validation_passed,
         "elapsed_seconds": elapsed,
         "output_file": relative_to_repo(ci_path),
         "output_folder": relative_to_repo(args.output_dir),
@@ -390,6 +465,9 @@ def write_summary(output_dir, rows):
         "j2",
         "Nt",
         "NR",
+        "source_score",
+        "zero_noise_abs_error",
+        "zero_noise_validation_passed",
         "source_parameter_file",
         "elapsed_seconds",
         "output_file",
@@ -424,6 +502,8 @@ def parse_args():
     parser.add_argument("--max-kraus-terms", type=int)
     parser.add_argument("--max-initial-thermal-branches", type=int)
     parser.add_argument("--recompute", action="store_true")
+    parser.add_argument("--validate-zero-noise", action="store_true")
+    parser.add_argument("--zero-noise-tolerance", type=float, default=1e-5)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--num-threads", type=int)
@@ -449,6 +529,8 @@ def parse_args():
         args.output_root = (job_dir / args.output_root).resolve()
 
     select_setup(args)
+    if args.validate_zero_noise:
+        validate_zero_noise_args(args)
 
     if not args.output_dir.is_absolute():
         args.output_dir = (job_dir / args.output_dir).resolve()
@@ -489,6 +571,7 @@ def main():
                 f"shape={tuple(parameters.shape)} d1={protocol['d1']} "
                 f"d2={protocol['d2']} j2={protocol['j2']} "
                 f"Nt={protocol['Nt']} NR={protocol['NR']} "
+                f"uses_source_protocol_settings={protocol['uses_source_protocol_settings']} "
                 f"source_score={selection.get('score', '')}",
                 flush=True,
             )
@@ -496,6 +579,17 @@ def main():
         return
 
     rows = [calculate_eta(args, eta) for eta in etas]
+    if args.validate_zero_noise:
+        failed = [
+            row
+            for row in rows
+            if row.get("zero_noise_validation_passed") is not True
+        ]
+        if failed:
+            raise SystemExit(
+                "Zero-noise validation failed for etas: "
+                + ", ".join(f"{row['eta']:.2f}" for row in failed)
+            )
     if len(rows) > 1:
         summary_path = write_summary(args.output_dir, rows)
         print(f"Wrote summary: {relative_to_repo(summary_path)}", flush=True)

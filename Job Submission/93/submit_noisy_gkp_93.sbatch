@@ -11,6 +11,17 @@
 #SBATCH --error=logs/noisy_gkp_93_%A_%a.err
 #SBATCH --array=0-75
 
+# Usage from this folder:
+#   Full rerun for all four setups and all etas:
+#     sbatch submit_noisy_gkp_93.sbatch
+#   Only noiseless validation, all etas:
+#     python -u calculate_noisy_gkp_93.py --setup noiseless_reference --all-etas --validate-zero-noise --recompute
+#   One eta/debug run:
+#     python -u calculate_noisy_gkp_93.py --setup noiseless_reference --eta 0.30 --validate-zero-noise --recompute --num-threads 1
+#
+# The array writes to ./Data/<setup-output-subdir>/eta=*/. Existing outputs are
+# reused unless calculate_noisy_gkp_93.py is run explicitly with --recompute.
+
 set -euo pipefail
 
 SUBMIT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"

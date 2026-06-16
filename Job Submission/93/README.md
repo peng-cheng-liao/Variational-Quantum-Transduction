@@ -1,37 +1,77 @@
 # Job 93: Noisy GKP coherent information
 
-This self-contained job evaluates noisy coherent information for GKP parameters
-copied from `Data_HPC/64_v2_2`, using
+This self-contained HPC job evaluates noisy coherent information for selected
+GKP parameters from `Data_HPC/64_v2_2`, using the job-local
 `QTorch.Transduction.transduction_protocol_CoherentInfo_GKP2_thermal_noise`.
 
-The noise presets match job 92:
+The default eta grid is `0.05, 0.10, ..., 0.95`. Each selected parameter vector
+has length 8:
 
-- `noisy`: `initial_p_nbar=0.1`, `kappa_o=kappa_m=0.99`
-- `noisy_nPth_0p01`: `initial_p_nbar=0.01`, `kappa_o=kappa_m=0.99`
-- `noisy_nPth_0p001`: `initial_p_nbar=0.001`, `kappa_o=kappa_m=0.99`
-- `noiseless_reference`: `initial_p_nbar=0`, `kappa_o=kappa_m=1`
-
-The default eta grid is `0.05, 0.10, ..., 0.95`.
-
-Each parameter vector has length 8:
-
-`delta1, r_hex1, phi1_hex, phi2_hex, delta2, r_hex2, phi3_hex, phi4_hex`.
-
-The source metadata in `parameters/eta=*/source_info.json` records the selected
-`d1`, `d2`, and `j2` from `Data_HPC/64_v2_2`. The production evaluator uses
-the job-64 GKP constants `d1=2`, `d2=1`, `j2=0`, `Nt=30`, and `NR=2`, and
-stores the source metadata values in `noise_config.json` for audit.
-
-Example local dry run:
-
-```bash
-python calculate_noisy_gkp_93.py --setup noisy --eta 0.25 --dry-run
+```text
+delta1, r_hex1, phi1_hex, phi2_hex, delta2, r_hex2, phi3_hex, phi4_hex
 ```
 
-Submit the full array from this folder:
+## Source data
+
+The source selection is summarized in `Data_HPC/64_v2_2/selection_summary.tsv`.
+Each local `parameters/eta=*/source_info.json` records the selected source
+`score`, `d1`, `d2`, and `j2`.
+
+Job 93 now evaluates with the selected source protocol settings:
+
+```text
+d1 = source_d1
+d2 = source_d2
+j2 = source_j2
+NR = d1
+```
+
+`noise_config.json` records both the source metadata and the actual evaluated
+`d1`, `d2`, `j2`, and `NR`, with `uses_source_protocol_settings: true`.
+
+## Output folders
+
+Outputs are written under `Data/<setup-output-subdir>/eta=*/`:
+
+- `noisy`: `Data/noisy_nPth=0p1_kS=0p99_kP=0p99/eta=*/`
+- `noisy_nPth_0p01`: `Data/noisy_nPth=0p01_kS=0p99_kP=0p99/eta=*/`
+- `noisy_nPth_0p001`: `Data/noisy_nPth=0p001_kS=0p99_kP=0p99/eta=*/`
+- `noiseless_reference`: `Data/noiseless_nPth=0_kS=1_kP=1/eta=*/`
+
+Existing outputs are reused by default. Use `--recompute` only when you want to
+overwrite an eta output with corrected metadata and regenerated values.
+
+## Zero-noise validation
+
+Validate one eta against the selected noiseless score:
+
+```bash
+python calculate_noisy_gkp_93.py --setup noiseless_reference --eta 0.30 --validate-zero-noise --recompute
+```
+
+Validate all etas:
+
+```bash
+python calculate_noisy_gkp_93.py --setup noiseless_reference --all-etas --validate-zero-noise --recompute
+```
+
+Validation evaluates with `initial_p_thermal_nbar=0`, `kappa_o=1`,
+`kappa_m=1`, `n_o=0`, and `n_m=0`, prints the eta, source score, recomputed
+score, absolute error, and `(d1,d2,j2,NR)`, and exits nonzero if any error is
+larger than `1e-5`.
+
+## Slurm
+
+Submit the full four-setup array from this folder:
 
 ```bash
 sbatch submit_noisy_gkp_93.sbatch
+```
+
+For a local metadata dry run:
+
+```bash
+python calculate_noisy_gkp_93.py --setup noisy --eta 0.25 --dry-run
 ```
 
 Aggregate completed results:
