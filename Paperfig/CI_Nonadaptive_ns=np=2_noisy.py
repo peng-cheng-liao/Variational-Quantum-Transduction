@@ -24,10 +24,8 @@ fig_dir = repo_dir / "Figs"
 etalist = np.around(np.arange(0.05, 1.0, 0.05), 2)
 n_s = 2
 n_p = 2
-VQT_RUN_ID = 84
 VQT_NOISE_RUN_ID = 92
 GKP_NOISE_RUN_ID = 93
-GKP_NOISELESS_SETUP = "noiseless_nPth=0_kS=1_kP=1"
 VQT_RUN92_NOISY_SETUPS = [
     {
         "folder": "noisy_nPth=0p1_kS=0p99_kP=0p99",
@@ -35,9 +33,7 @@ VQT_RUN92_NOISY_SETUPS = [
         "nbar_p": 0.1,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
-        "label": r"VQT-noise",
-        "marker": "x",
-        "ls": "-.",
+        "label": "VQT",
     },
     {
         "folder": "noisy_nPth=0p01_kS=0p99_kP=0p99",
@@ -45,9 +41,7 @@ VQT_RUN92_NOISY_SETUPS = [
         "nbar_p": 0.01,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
-        "label": r"VQT-noise",
-        "marker": "P",
-        "ls": "-.",
+        "label": "VQT",
     },
     {
         "folder": "noisy_nPth=0p001_kS=0p99_kP=0p99",
@@ -55,27 +49,13 @@ VQT_RUN92_NOISY_SETUPS = [
         "nbar_p": 0.001,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
-        "label": r"VQT-noise",
-        "marker": "X",
-        "ls": "-.",
+        "label": "VQT",
     },
 ]
 
 
 def eta_folder(eta):
     return f"eta={eta:.2f}"
-
-
-def load_best_feasible_ci(run_id, etas=etalist):
-    ci_list = []
-    for eta in etas:
-        path = data_dir / str(run_id) / eta_folder(eta) / "best_feasible_ci.txt"
-        try:
-            ci_list.append(float(path.read_text().strip()))
-        except (OSError, ValueError):
-            print(f"Missing best feasible CI: {path}")
-            ci_list.append(np.nan)
-    return np.array(ci_list)
 
 
 def load_vqt_run92_ci(setup_name, etas=etalist):
@@ -180,49 +160,28 @@ def gaussian_tms_ea_curve(setup, etas=etalist):
     return np.array(values)
 
 
-def plot_vqt(ax, label="VQT noiseless"):
-    ci_list = load_best_feasible_ci(VQT_RUN_ID)
-    print("VQT", ci_list)
-    ax.plot(etalist, ci_list, label=label, marker="o", color=default_colors[0])
-
-
-def plot_noisy_vqt_setup(ax, setup, setup_index):
+def plot_noisy_vqt_setup(ax, setup):
     ci_values = load_vqt_run92_ci(setup["folder"])
     print(f"{setup['label']} {setup['folder']}", ci_values)
-    color_index = 4 + setup_index
     ax.plot(
         etalist,
         ci_values,
         label=setup["label"],
-        marker=setup["marker"],
-        ls=setup["ls"],
-        color=default_colors[color_index] if len(default_colors) > color_index else None,
+        marker="o",
+        color=default_colors[0],
     )
 
 
 def plot_noisy_gkp_setup(ax, setup):
     ci_values = load_gkp_run93_ci(setup["folder"])
-    print(f"GKP-noise {setup['folder']}", ci_values)
+    print(f"GKP {setup['folder']}", ci_values)
     ax.plot(
         etalist,
         ci_values,
-        label="GKP-noise",
-        marker="D",
-        ls="-",
-        color=default_colors[1] if len(default_colors) > 1 else None,
-    )
-
-
-def plot_noiseless_gkp_reference(ax):
-    ci_values = load_gkp_run93_ci(GKP_NOISELESS_SETUP)
-    print(f"GKP noiseless {GKP_NOISELESS_SETUP}", ci_values)
-    ax.plot(
-        etalist,
-        ci_values,
-        label="GKP noiseless",
-        marker="s",
+        label="GKP",
+        marker="*",
         ls="--",
-        color=default_colors[7] if len(default_colors) > 7 else None,
+        color=default_colors[1] if len(default_colors) > 1 else None,
     )
 
 
@@ -231,10 +190,10 @@ def plot_gaussian_benchmarks(ax, setup):
     # single-output nonadaptive Gaussian benchmark only uses the retained P mode.
     qt_values = gaussian_qt_curve(setup)
     tms_values = gaussian_tms_ea_curve(setup)
-    print(f"QT-noise {setup['folder']}", qt_values)
-    print(f"TMS-EA-noise {setup['folder']}", tms_values)
-    ax.plot(etalist, qt_values, label="QT-noise", ls="--", marker="v", color=default_colors[3])
-    ax.plot(etalist, tms_values, label="TMS-EA-noise", ls=":", marker="^", color=default_colors[2])
+    print(f"TMS-EA {setup['folder']}", tms_values)
+    ax.plot(etalist, tms_values, label="TMS-EA", marker="^", color=default_colors[2])
+    print(f"QT {setup['folder']}", qt_values)
+    ax.plot(etalist, qt_values, label="QT", ls="--", marker="v", color=default_colors[3])
 
 
 def main():
@@ -250,10 +209,8 @@ def main():
         'lines.markersize': 5,
     })
 
-    for i, (ax, setup) in enumerate(zip(axes, VQT_RUN92_NOISY_SETUPS)):
-        plot_vqt(ax)
-        plot_noiseless_gkp_reference(ax)
-        plot_noisy_vqt_setup(ax, setup, i)
+    for ax, setup in zip(axes, VQT_RUN92_NOISY_SETUPS):
+        plot_noisy_vqt_setup(ax, setup)
         plot_noisy_gkp_setup(ax, setup)
         plot_gaussian_benchmarks(ax, setup)
         ax.set_title(setup["title"])
