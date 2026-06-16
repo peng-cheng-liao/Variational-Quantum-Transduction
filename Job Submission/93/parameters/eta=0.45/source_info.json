@@ -1,0 +1,41 @@
+{
+  "eta": 0.45,
+  "gkp_constants": {
+    "NR_default": 2,
+    "Nt": 30,
+    "d1_default": 2,
+    "d2_default": 1,
+    "j2_default": 0
+  },
+  "parameter_names": [
+    "delta1",
+    "r_hex1",
+    "phi1_hex",
+    "phi2_hex",
+    "delta2",
+    "r_hex2",
+    "phi3_hex",
+    "phi4_hex"
+  ],
+  "parameter_shape": [
+    8
+  ],
+  "run_id": 93,
+  "selection_summary": {
+    "copied_files": "ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy",
+    "d1": "3",
+    "d2": "4",
+    "dest": "/home1/liaopeng/QuantumTransduction/64_v2/Data-download-2/eta=0.45",
+    "eta": "0.45",
+    "eta_source": "0.45",
+    "folder": "/home1/liaopeng/QuantumTransduction/64_v2/Data/eta=0.45_d1=3_d2=4",
+    "j2": "2",
+    "missing_optional_files": "",
+    "prefix": "/home1/liaopeng/QuantumTransduction/64_v2/Data/eta=0.45_d1=3_d2=4/j2=2_randomization=8_",
+    "randomization": "8",
+    "score": "0.2549690099563158"
+  },
+  "source_note": "Copied from Data_HPC/64_v2_2 for self-contained job 93.",
+  "source_parameter_file": "Data_HPC/64_v2_2/eta=0.45/parameters.npy",
+  "source_run_id": "64_v2_2"
+}
