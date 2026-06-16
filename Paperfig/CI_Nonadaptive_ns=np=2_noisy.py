@@ -24,12 +24,19 @@ fig_dir = repo_dir / "Figs"
 etalist = np.around(np.arange(0.05, 1.0, 0.05), 2)
 n_s = 2
 n_p = 2
+FIGSIZE = (11.0, 4.8)
+AXIS_LABEL_SIZE = 20
+TICK_LABEL_SIZE = 16
+TITLE_SIZE = 20
+LEGEND_SIZE = 17
+LINE_WIDTH = 2.2
+MARKER_SIZE = 6.5
 VQT_NOISE_RUN_ID = 92
 GKP_NOISE_RUN_ID = 93
 VQT_RUN92_NOISY_SETUPS = [
     {
         "folder": "noisy_nPth=0p1_kS=0p99_kP=0p99",
-        "title": r"$n_P^{\rm th}=0.1,\ \kappa_S=\kappa_P=0.99$",
+        "title": r"$n_P^{\rm th}=0.1$" + "\n" + r"$\kappa_S=\kappa_P=0.99$",
         "nbar_p": 0.1,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
@@ -37,7 +44,7 @@ VQT_RUN92_NOISY_SETUPS = [
     },
     {
         "folder": "noisy_nPth=0p01_kS=0p99_kP=0p99",
-        "title": r"$n_P^{\rm th}=0.01,\ \kappa_S=\kappa_P=0.99$",
+        "title": r"$n_P^{\rm th}=0.01$" + "\n" + r"$\kappa_S=\kappa_P=0.99$",
         "nbar_p": 0.01,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
@@ -45,7 +52,7 @@ VQT_RUN92_NOISY_SETUPS = [
     },
     {
         "folder": "noisy_nPth=0p001_kS=0p99_kP=0p99",
-        "title": r"$n_P^{\rm th}=0.001,\ \kappa_S=\kappa_P=0.99$",
+        "title": r"$n_P^{\rm th}=0.001$" + "\n" + r"$\kappa_S=\kappa_P=0.99$",
         "nbar_p": 0.001,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
@@ -197,34 +204,43 @@ def plot_gaussian_benchmarks(ax, setup):
 
 
 def main():
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
-    fs = 20
     plt.rcParams.update({
-        'font.size': fs,
-        'axes.labelsize': fs,
-        'legend.fontsize': fs - 6,
-        'xtick.labelsize': fs,
-        'ytick.labelsize': fs,
-        'lines.linewidth': 1.5,
-        'lines.markersize': 5,
+        'font.size': TICK_LABEL_SIZE,
+        'axes.labelsize': AXIS_LABEL_SIZE,
+        'axes.titlesize': TITLE_SIZE,
+        'legend.fontsize': LEGEND_SIZE,
+        'xtick.labelsize': TICK_LABEL_SIZE,
+        'ytick.labelsize': TICK_LABEL_SIZE,
+        'lines.linewidth': LINE_WIDTH,
+        'lines.markersize': MARKER_SIZE,
     })
+    fig, axes = plt.subplots(1, 3, figsize=FIGSIZE, sharey=True)
 
     for ax, setup in zip(axes, VQT_RUN92_NOISY_SETUPS):
         plot_noisy_vqt_setup(ax, setup)
         plot_noisy_gkp_setup(ax, setup)
         plot_gaussian_benchmarks(ax, setup)
-        ax.set_title(setup["title"])
-        ax.set_xlabel(r"Transmissivity $\eta$")
-        ax.tick_params(axis='both', which='major')
+        ax.set_title(setup["title"], fontsize=TITLE_SIZE, pad=8)
+        ax.set_xlabel(r"Transmissivity $\eta$", fontsize=AXIS_LABEL_SIZE, labelpad=4)
+        ax.tick_params(axis='both', which='major', labelsize=TICK_LABEL_SIZE, width=1.2, length=4)
         ax.grid(True, alpha=0.25)
 
-    axes[0].set_ylabel("Coherent Information (CI)")
+    axes[0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=6)
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=6, frameon=False)
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        ncol=4,
+        frameon=False,
+        fontsize=LEGEND_SIZE,
+        handlelength=1.6,
+        columnspacing=1.4,
+    )
 
-    fig.tight_layout(rect=[0, 0, 1, 0.82])
+    fig.tight_layout(rect=[0, 0, 1, 0.86], w_pad=0.5)
     fig_dir.mkdir(exist_ok=True)
-    plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive_noisy_three_panel.jpg", dpi=500)
+    plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive_noisy_three_panel.jpg", dpi=500, bbox_inches="tight")
     plt.show()
 
 
