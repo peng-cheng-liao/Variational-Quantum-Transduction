@@ -231,6 +231,7 @@ def main():
         handles,
         labels,
         loc="upper center",
+        bbox_to_anchor=(0.5, 0.98),
         ncol=4,
         frameon=False,
         fontsize=LEGEND_SIZE,
@@ -238,7 +239,7 @@ def main():
         columnspacing=1.2,
     )
 
-    fig.tight_layout(rect=[0, 0, 1, 0.84], w_pad=0.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.88], w_pad=0.5)
     fig_dir.mkdir(exist_ok=True)
     plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive_noisy_three_panel.jpg", dpi=500, bbox_inches="tight")
     plt.show()
