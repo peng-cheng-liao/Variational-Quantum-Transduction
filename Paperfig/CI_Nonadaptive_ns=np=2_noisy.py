@@ -24,13 +24,13 @@ fig_dir = repo_dir / "Figs"
 etalist = np.around(np.arange(0.05, 1.0, 0.05), 2)
 n_s = 2
 n_p = 2
-FIGSIZE = (11.0, 4.8)
-AXIS_LABEL_SIZE = 20
-TICK_LABEL_SIZE = 16
-TITLE_SIZE = 20
-LEGEND_SIZE = 17
-LINE_WIDTH = 2.2
-MARKER_SIZE = 6.5
+FIGSIZE = (11.0, 4.0)
+AXIS_LABEL_SIZE = 15
+TICK_LABEL_SIZE = 12
+TITLE_SIZE = 16
+LEGEND_SIZE = 13
+LINE_WIDTH = 1.9
+MARKER_SIZE = 5.5
 VQT_NOISE_RUN_ID = 92
 GKP_NOISE_RUN_ID = 93
 VQT_RUN92_NOISY_SETUPS = [
@@ -220,12 +220,12 @@ def main():
         plot_noisy_vqt_setup(ax, setup)
         plot_noisy_gkp_setup(ax, setup)
         plot_gaussian_benchmarks(ax, setup)
-        ax.set_title(setup["title"], fontsize=TITLE_SIZE, pad=8)
-        ax.set_xlabel(r"Transmissivity $\eta$", fontsize=AXIS_LABEL_SIZE, labelpad=4)
-        ax.tick_params(axis='both', which='major', labelsize=TICK_LABEL_SIZE, width=1.2, length=4)
+        ax.set_title(setup["title"], fontsize=TITLE_SIZE, pad=5)
+        ax.set_xlabel(r"Transmissivity $\eta$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
+        ax.tick_params(axis='both', which='major', labelsize=TICK_LABEL_SIZE, width=1.0, length=3.5)
         ax.grid(True, alpha=0.25)
 
-    axes[0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=6)
+    axes[0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(
         handles,
@@ -234,11 +234,11 @@ def main():
         ncol=4,
         frameon=False,
         fontsize=LEGEND_SIZE,
-        handlelength=1.6,
-        columnspacing=1.4,
+        handlelength=1.5,
+        columnspacing=1.2,
     )
 
-    fig.tight_layout(rect=[0, 0, 1, 0.86], w_pad=0.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.84], w_pad=0.5)
     fig_dir.mkdir(exist_ok=True)
     plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive_noisy_three_panel.jpg", dpi=500, bbox_inches="tight")
     plt.show()
