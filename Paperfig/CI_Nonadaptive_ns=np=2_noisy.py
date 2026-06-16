@@ -27,6 +27,7 @@ n_p = 2
 VQT_RUN_ID = 84
 VQT_NOISE_RUN_ID = 92
 GKP_NOISE_RUN_ID = 93
+GKP_NOISELESS_SETUP = "noiseless_nPth=0_kS=1_kP=1"
 VQT_RUN92_NOISY_SETUPS = [
     {
         "folder": "noisy_nPth=0p1_kS=0p99_kP=0p99",
@@ -212,6 +213,19 @@ def plot_noisy_gkp_setup(ax, setup):
     )
 
 
+def plot_noiseless_gkp_reference(ax):
+    ci_values = load_gkp_run93_ci(GKP_NOISELESS_SETUP)
+    print(f"GKP noiseless {GKP_NOISELESS_SETUP}", ci_values)
+    ax.plot(
+        etalist,
+        ci_values,
+        label="GKP noiseless",
+        marker="s",
+        ls="--",
+        color=default_colors[7] if len(default_colors) > 7 else None,
+    )
+
+
 def plot_gaussian_benchmarks(ax, setup):
     # kappa_s is tracked in setup metadata for parity with VQT-noise, but the
     # single-output nonadaptive Gaussian benchmark only uses the retained P mode.
@@ -238,6 +252,7 @@ def main():
 
     for i, (ax, setup) in enumerate(zip(axes, VQT_RUN92_NOISY_SETUPS)):
         plot_vqt(ax)
+        plot_noiseless_gkp_reference(ax)
         plot_noisy_vqt_setup(ax, setup, i)
         plot_noisy_gkp_setup(ax, setup)
         plot_gaussian_benchmarks(ax, setup)
@@ -248,9 +263,9 @@ def main():
 
     axes[0].set_ylabel("Coherent Information (CI)")
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=5, frameon=False)
+    fig.legend(handles, labels, loc="upper center", ncol=6, frameon=False)
 
-    fig.tight_layout(rect=[0, 0, 1, 0.84])
+    fig.tight_layout(rect=[0, 0, 1, 0.82])
     fig_dir.mkdir(exist_ok=True)
     plt.savefig(fig_dir / "CI_ns=np=2_Non-Adaptive_noisy_three_panel.jpg", dpi=500)
     plt.show()
