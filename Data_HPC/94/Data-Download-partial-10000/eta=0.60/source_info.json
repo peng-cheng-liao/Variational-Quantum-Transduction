@@ -1,0 +1,27 @@
+{
+  "best_index": 4999,
+  "copied_files": [
+    "ci_list.npy",
+    "ns_list.npy",
+    "np_list.npy",
+    "parameters.npy",
+    "best_index.txt",
+    "best_feasible_ci.txt",
+    "source_info.json",
+    "state_RS.npy",
+    "state_P.npy"
+  ],
+  "d1": 2,
+  "d2": 2,
+  "eta": "0.60",
+  "eta_source": "0.60",
+  "j2": 1,
+  "missing_optional_files": [],
+  "randomization": 8,
+  "score": "0.40017358866528951",
+  "selection_note": "Candidates without best_parameters.npy were skipped.",
+  "source_folder": "/home1/liaopeng/QuantumTransduction/94/Data/eta=0.60_d1=2_d2=2",
+  "source_prefix": "/home1/liaopeng/QuantumTransduction/94/Data/eta=0.60_d1=2_d2=2/j2=1_randomization=8_",
+  "verification_abs_error": 0.0,
+  "verification_status": "verified"
+}
