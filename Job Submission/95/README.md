@@ -1,90 +1,92 @@
-# Job 95: Auxiliary-loss noisy VQT sweep
+# Job 95: Self-contained auxiliary-loss noisy VQT sweep
 
-This local job mirrors `Job Submission/92` for the run-84 non-adaptive VQT-EA
-parameters, but evaluates the repository-level
-`transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise` function with an
-explicit auxiliary-loss sweep.
+Job 95 mirrors the structure of `Job Submission/92`. It is self-contained with a
+local `QTorch` copy, local run-84 parameter files copied from Job 92, a Slurm
+array script, and Job-92-style text/config outputs.
 
-The default scan uses the same eta grid as Job 92:
+The calculation evaluates the run-84 non-adaptive VQT-EA parameters using:
+
+```text
+transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise
+```
+
+with the updated auxiliary-loss arguments for mode A.
+
+## Scan
+
+Eta grid:
 
 ```text
 eta = 0.05, 0.10, ..., 0.95
 ```
 
-For every eta, Job 95 evaluates:
+Auxiliary-loss sweep:
 
 ```text
-kappa_a = 1.0, 0.95, 0.9
+kappa_A in {1.0, 0.95, 0.9}
 ```
 
 Fixed noise settings:
 
 ```text
-initial_p_thermal_nbar = 0.1
-kappa_o = 0.99
-kappa_m = 0.99
+n_th^P = 0.1
+kappa_S = kappa_P = 0.99
 n_o = n_m = n_a = 0.0
 ```
 
-Inputs are read from `Job Submission/92/parameters`, preserving Job 92's local
-parameter-loading style. Outputs are written under `Data_HPC/95`.
+Outputs are written under:
 
-This folder intentionally uses the repository `QTorch` package directly and
-does not copy a local `QTorch` folder or add an sbatch script for local Mac
-runs.
+```text
+Data_HPC/95
+```
 
 ## Commands
 
-Dry run:
+Run from this folder:
 
 ```bash
-python "Job Submission/95/calculate_95.py" --dry-run
+cd "Job Submission/95"
 ```
 
-One-task smoke test:
+List setup presets:
 
 ```bash
-python "Job Submission/95/calculate_95.py" --eta-index 0 --kappa-a 1.0 --max-items 1 --nt 8 --num-threads 4 --overwrite
+python calculate_noisy_vqt_95.py --list-setups
 ```
 
-Full intended local scan:
+Dry run for setup 0 and eta index 0:
 
 ```bash
-python "Job Submission/95/calculate_95.py" --num-threads 4
+python calculate_noisy_vqt_95.py --dry-run --eta-index 0 --setup-index 0
+```
+
+One recompute task:
+
+```bash
+python calculate_noisy_vqt_95.py --setup-index 0 --eta-index 0 --recompute
+```
+
+Submit the full 57-task Slurm array:
+
+```bash
+sbatch submit_noisy_vqt_95.sbatch
 ```
 
 Summarize outputs:
 
 ```bash
-python "Job Submission/95/process_95.py"
-```
-
-Run one eta for all auxiliary-loss values:
-
-```bash
-python "Job Submission/95/calculate_95.py" --eta-index 0 --num-threads 4
-```
-
-Run one auxiliary-loss value for all eta:
-
-```bash
-python "Job Submission/95/calculate_95.py" --kappa-a 0.95 --num-threads 4
+python process_noisy_vqt_95.py
 ```
 
 ## Runtime Notes
 
-The full scan is heavier than Job 92 by roughly a factor of three because it
-sweeps three `kappa_a` values.
+The full scan has 57 tasks: 3 auxiliary-loss setup presets times 19 eta values.
 
-If the updated thermal-noise function includes A-loss Kraus branching, branch
-count scales approximately as:
+For `kappa_A=1.0`, A-loss should be identity-like and cheap. For
+`kappa_A=0.95` and `kappa_A=0.9`, A-loss adds Kraus branching and may be slower.
+
+The branch count scales roughly as:
 
 ```text
 N_thermal * N_Kraus(S) * N_Kraus(P) * N_Kraus(A)
 ```
-
-For `kappa_a=1.0`, the A-loss branch should be identity-like and cheap. For
-`kappa_a=0.95` or `kappa_a=0.9`, A-loss can noticeably increase runtime.
-
-On a MacBook Air with 8GB RAM, start with the smoke-test command before
-launching the full scan.
