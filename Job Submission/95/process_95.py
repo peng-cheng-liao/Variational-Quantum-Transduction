@@ -12,6 +12,7 @@ job_dir = Path(__file__).resolve().parent
 repo_dir = job_dir.parents[1]
 DEFAULT_INPUT_ROOT = repo_dir / "Data_HPC" / "95"
 DEFAULT_SUMMARY_PATH = DEFAULT_INPUT_ROOT / "summary_95.csv"
+DEFAULT_BEST_PATH = DEFAULT_INPUT_ROOT / "best_by_eta_kappaA_95.json"
 
 
 def relative_to_repo(path):
@@ -35,53 +36,59 @@ def scalar(value):
 
 
 def result_files(input_root):
-    return sorted(input_root.glob("*/eta=*/result.pt"))
+    return sorted(input_root.glob("*/eta=*/result_kappaA_*.pt"))
 
 
 def row_from_payload(path, payload):
     return {
         "eta": payload.get("eta", ""),
-        "setup_name": payload.get("setup_name", ""),
+        "eta_index": payload.get("eta_index", ""),
+        "kappa_a": payload.get("kappa_a", ""),
         "ci": scalar(payload.get("CI", "")),
+        "coherent_information": scalar(payload.get("coherent_information", payload.get("CI", ""))),
         "ns_input": scalar(payload.get("ns_input", "")),
         "np_input": scalar(payload.get("np_input", "")),
         "initial_p_thermal_nbar": payload.get("initial_p_thermal_nbar", ""),
         "kappa_o": payload.get("kappa_o", ""),
         "kappa_m": payload.get("kappa_m", ""),
-        "kappa_a": payload.get("kappa_a", ""),
+        "n_a": payload.get("n_a", ""),
         "n_o": payload.get("n_o", ""),
         "n_m": payload.get("n_m", ""),
-        "n_a": payload.get("n_a", ""),
         "depth": payload.get("depth", ""),
         "Nt": payload.get("Nt", ""),
-        "source_parameter_file": payload.get("source_parameter_file", ""),
+        "parameter_source_path": payload.get(
+            "parameter_source_path",
+            payload.get("source_parameter_file", ""),
+        ),
+        "seed": payload.get("seed", ""),
+        "parameter_index": payload.get("parameter_index", ""),
         "runtime_seconds": payload.get("runtime_seconds", ""),
         "timestamp_utc": payload.get("timestamp_utc", ""),
+        "function": payload.get("function", ""),
         "output_file": relative_to_repo(path),
     }
 
 
 def group_key(row):
     return (
-        row["setup_name"],
         row["eta"],
+        row["kappa_a"],
         row["initial_p_thermal_nbar"],
         row["kappa_o"],
         row["kappa_m"],
-        row["kappa_a"],
+        row["n_a"],
         row["n_o"],
         row["n_m"],
-        row["n_a"],
     )
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Summarize job 95 noisy VQT outputs into Data_HPC/95/summary_95.csv."
+        description="Summarize Job 95 auxiliary-loss sweep outputs in Data_HPC/95."
     )
     parser.add_argument("--input-root", type=Path, default=DEFAULT_INPUT_ROOT)
     parser.add_argument("--summary", type=Path, default=DEFAULT_SUMMARY_PATH)
-    parser.add_argument("--best-json", type=Path, default=DEFAULT_INPUT_ROOT / "best_by_eta_95.json")
+    parser.add_argument("--best-json", type=Path, default=DEFAULT_BEST_PATH)
     return parser.parse_args()
 
 
@@ -104,38 +111,42 @@ def main():
 
     fieldnames = [
         "eta",
-        "setup_name",
+        "eta_index",
+        "kappa_a",
         "ci",
+        "coherent_information",
         "ns_input",
         "np_input",
         "initial_p_thermal_nbar",
         "kappa_o",
         "kappa_m",
-        "kappa_a",
+        "n_a",
         "n_o",
         "n_m",
-        "n_a",
         "depth",
         "Nt",
-        "source_parameter_file",
+        "parameter_source_path",
+        "seed",
+        "parameter_index",
         "runtime_seconds",
         "timestamp_utc",
+        "function",
         "output_file",
     ]
     args.summary.parent.mkdir(parents=True, exist_ok=True)
     with args.summary.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
-        for row in sorted(rows, key=lambda item: (str(item["setup_name"]), float(item["eta"]))):
+        for row in sorted(rows, key=lambda item: (float(item["eta"]), float(item["kappa_a"]))):
             writer.writerow({key: row.get(key, "") for key in fieldnames})
 
     grouped = defaultdict(list)
     for row in rows:
         grouped[group_key(row)].append(row)
+
     best_rows = []
-    for key, group_rows in grouped.items():
-        best = max(group_rows, key=lambda item: float(item["ci"]))
-        best_rows.append({"key": key, "best": best})
+    for _, group_rows in grouped.items():
+        best_rows.append(max(group_rows, key=lambda item: float(item["ci"])))
 
     best_payload = {
         "summary_csv": relative_to_repo(args.summary),
@@ -143,21 +154,22 @@ def main():
         "result_count": len(rows),
         "error_count": len(errors),
         "errors": errors,
-        "best_by_eta_noise": [
+        "best_by_eta_kappa_a": [
             {
-                "setup_name": item["best"]["setup_name"],
-                "eta": item["best"]["eta"],
-                "initial_p_thermal_nbar": item["best"]["initial_p_thermal_nbar"],
-                "kappa_o": item["best"]["kappa_o"],
-                "kappa_m": item["best"]["kappa_m"],
-                "kappa_a": item["best"]["kappa_a"],
-                "n_o": item["best"]["n_o"],
-                "n_m": item["best"]["n_m"],
-                "n_a": item["best"]["n_a"],
-                "ci": item["best"]["ci"],
-                "output_file": item["best"]["output_file"],
+                "eta": row["eta"],
+                "eta_index": row["eta_index"],
+                "kappa_a": row["kappa_a"],
+                "initial_p_thermal_nbar": row["initial_p_thermal_nbar"],
+                "kappa_o": row["kappa_o"],
+                "kappa_m": row["kappa_m"],
+                "n_a": row["n_a"],
+                "n_o": row["n_o"],
+                "n_m": row["n_m"],
+                "ci": row["ci"],
+                "coherent_information": row["coherent_information"],
+                "output_file": row["output_file"],
             }
-            for item in sorted(best_rows, key=lambda item: (str(item["best"]["setup_name"]), float(item["best"]["eta"])))
+            for row in sorted(best_rows, key=lambda item: (float(item["eta"]), float(item["kappa_a"])))
         ],
     }
     args.best_json.write_text(json.dumps(best_payload, indent=2, sort_keys=True) + "\n")
