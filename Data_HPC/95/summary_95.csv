@@ -1,0 +1,2 @@
+eta,setup_name,ci,ns_input,np_input,initial_p_thermal_nbar,kappa_o,kappa_m,kappa_a,n_o,n_m,n_a,depth,Nt,source_parameter_file,runtime_seconds,timestamp_utc,output_file
+0.05,noisy,-6.499787097213883e-05,1.771786089705763,1.9548385220199553,0.1,0.99,0.99,0.99,0.0,0.0,0.0,20,8,Data_HPC/84/eta=0.05/parameters_best_feasible.npy,4.841551374993287,2026-06-23T01:44:00.698346+00:00,Data_HPC/95/noisy_nPth=0p1_kS=0p99_kP=0p99_kA=0p99/eta=0.05/result.pt
