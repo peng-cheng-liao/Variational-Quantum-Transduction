@@ -7,20 +7,29 @@
 #SBATCH --mem=4GB
 #SBATCH --time=00:20:00
 #SBATCH --job-name=CI96_select_depth
-#SBATCH --output=logs/select_%j.out
-#SBATCH --error=logs/select_%j.err
+#SBATCH --output=/home1/liaopeng/QuantumTransduction/96/logs/select_%j.out
+#SBATCH --error=/home1/liaopeng/QuantumTransduction/96/logs/select_%j.err
 
 set -euo pipefail
-cd "$SLURM_SUBMIT_DIR"
+
+HOME_JOB_DIR="/home1/liaopeng/QuantumTransduction/96"
+SCRATCH_DATA_ROOT="/scratch1/liaopeng/QuantumTransduction/96/Data"
+SCRATCH_RUNS_ROOT="${SCRATCH_DATA_ROOT}/runs"
+SCRATCH_PARAMS_ROOT="${SCRATCH_DATA_ROOT}/training_parameters"
+DOWNLOAD_DIR="${HOME_JOB_DIR}/Data_Download"
+export SCRATCH_RUNS_ROOT
+
+mkdir -p "${HOME_JOB_DIR}/logs"
+mkdir -p "${SCRATCH_RUNS_ROOT}" "${SCRATCH_PARAMS_ROOT}"
+cd "${HOME_JOB_DIR}"
 
 module purge
 module load legacy/CentOS7
 module load gcc/11.3.0
 module load python/3.9.12
 
-mkdir -p logs runs
-
 python - << 'PY'
+import os
 from pathlib import Path
 
 ETA = '0.30'
@@ -29,7 +38,7 @@ SEEDS = range(200)
 NT = 30
 TOPK = 20
 
-base_runs = Path("runs")
+base_runs = Path(os.environ["SCRATCH_RUNS_ROOT"])
 
 def read_float(p: Path):
     try:

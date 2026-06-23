@@ -7,19 +7,27 @@
 #SBATCH --mem=16GB
 #SBATCH --time=3:00:00
 #SBATCH --job-name=CI96_s1_depth
-#SBATCH --output=logs/s1_%A_%a.out
-#SBATCH --error=logs/s1_%A_%a.err
+#SBATCH --output=/home1/liaopeng/QuantumTransduction/96/logs/s1_%A_%a.out
+#SBATCH --error=/home1/liaopeng/QuantumTransduction/96/logs/s1_%A_%a.err
 #SBATCH --array=0-1799
 
 set -euo pipefail
-cd "$SLURM_SUBMIT_DIR"
+
+HOME_JOB_DIR="/home1/liaopeng/QuantumTransduction/96"
+SCRATCH_DATA_ROOT="/scratch1/liaopeng/QuantumTransduction/96/Data"
+SCRATCH_RUNS_ROOT="${SCRATCH_DATA_ROOT}/runs"
+SCRATCH_PARAMS_ROOT="${SCRATCH_DATA_ROOT}/training_parameters"
+DOWNLOAD_DIR="${HOME_JOB_DIR}/Data_Download"
+
+mkdir -p "${HOME_JOB_DIR}/logs"
+mkdir -p "${SCRATCH_RUNS_ROOT}" "${SCRATCH_PARAMS_ROOT}"
+mkdir -p "${DOWNLOAD_DIR}"
+cd "${HOME_JOB_DIR}"
 
 module purge
 module load legacy/CentOS7
 module load gcc/11.3.0
 module load python/3.9.12
-
-mkdir -p logs runs training_parameters
 
 # ---- thread caps for NumPy (MKL/OpenMP/OpenBLAS) + PyTorch ----
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
@@ -53,8 +61,8 @@ export RESUME=0
 export RESUME_FROM=latest
 
 # Explicit dirs to guarantee consistent layout
-export RUN_DIR="runs/eta=${ETA_TAG}_depth=${DEPTH_TAG}_Nt=30/seed_${SEED}"
-export CKPT_DIR="training_parameters/eta=${ETA_TAG}_depth=${DEPTH_TAG}_Nt=30/seed_${SEED}"
+export RUN_DIR="${SCRATCH_RUNS_ROOT}/eta=${ETA_TAG}_depth=${DEPTH_TAG}_Nt=30/seed_${SEED}"
+export CKPT_DIR="${SCRATCH_PARAMS_ROOT}/eta=${ETA_TAG}_depth=${DEPTH_TAG}_Nt=30/seed_${SEED}"
 
 echo "Running stage1:"
 echo "  ETA      = $ETA"
@@ -63,6 +71,7 @@ echo "  SEED     = $SEED"
 echo "  MAX_STEPS= $MAX_STEPS"
 echo "  RUN_DIR  = $RUN_DIR"
 echo "  CKPT_DIR = $CKPT_DIR"
+echo "  DOWNLOAD_DIR = $DOWNLOAD_DIR"
 echo "  TASK_ID  = $TASK_ID"
 
 python train_ci.py

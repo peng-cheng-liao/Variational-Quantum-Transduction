@@ -7,19 +7,27 @@
 #SBATCH --mem=16GB
 #SBATCH --time=10:00:00
 #SBATCH --job-name=CI96_s2_depth
-#SBATCH --output=logs/s2_%A_%a.out
-#SBATCH --error=logs/s2_%A_%a.err
+#SBATCH --output=/home1/liaopeng/QuantumTransduction/96/logs/s2_%A_%a.out
+#SBATCH --error=/home1/liaopeng/QuantumTransduction/96/logs/s2_%A_%a.err
 #SBATCH --array=0-179
 
 set -euo pipefail
-cd "$SLURM_SUBMIT_DIR"
+
+HOME_JOB_DIR="/home1/liaopeng/QuantumTransduction/96"
+SCRATCH_DATA_ROOT="/scratch1/liaopeng/QuantumTransduction/96/Data"
+SCRATCH_RUNS_ROOT="${SCRATCH_DATA_ROOT}/runs"
+SCRATCH_PARAMS_ROOT="${SCRATCH_DATA_ROOT}/training_parameters"
+DOWNLOAD_DIR="${HOME_JOB_DIR}/Data_Download"
+
+mkdir -p "${HOME_JOB_DIR}/logs"
+mkdir -p "${SCRATCH_RUNS_ROOT}" "${SCRATCH_PARAMS_ROOT}"
+mkdir -p "${DOWNLOAD_DIR}"
+cd "${HOME_JOB_DIR}"
 
 module purge
 module load legacy/CentOS7
 module load gcc/11.3.0
 module load python/3.9.12
-
-mkdir -p logs runs training_parameters
 
 # ---- thread caps for NumPy (MKL/OpenMP/OpenBLAS) + PyTorch ----
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
@@ -36,7 +44,7 @@ RANK=$(( TASK_ID % 20 ))
 
 DEPTH="${DEPTHS[$DEPTH_IDX]}"
 DEPTH_TAG="$(printf "%02d" "${DEPTH}")"
-TOP_FILE="runs/eta=${ETA}_depth=${DEPTH_TAG}_Nt=30/top20_seeds.txt"
+TOP_FILE="${SCRATCH_RUNS_ROOT}/eta=${ETA}_depth=${DEPTH_TAG}_Nt=30/top20_seeds.txt"
 
 if [[ ! -f "$TOP_FILE" ]]; then
   echo "ERROR: missing $TOP_FILE (did you run select_top.sbatch?)"
@@ -61,8 +69,8 @@ export MAX_STEPS=20000
 export RESUME=1
 export RESUME_FROM=best_feasible
 
-export RUN_DIR="runs/eta=${ETA_TAG}_depth=${DEPTH_TAG}_Nt=30/seed_${SEED}"
-export CKPT_DIR="training_parameters/eta=${ETA_TAG}_depth=${DEPTH_TAG}_Nt=30/seed_${SEED}"
+export RUN_DIR="${SCRATCH_RUNS_ROOT}/eta=${ETA_TAG}_depth=${DEPTH_TAG}_Nt=30/seed_${SEED}"
+export CKPT_DIR="${SCRATCH_PARAMS_ROOT}/eta=${ETA_TAG}_depth=${DEPTH_TAG}_Nt=30/seed_${SEED}"
 
 echo "Running stage2:"
 echo "  ETA        = $ETA"
@@ -72,6 +80,7 @@ echo "  MAX_STEPS  = $MAX_STEPS"
 echo "  RESUME_FROM= $RESUME_FROM"
 echo "  RUN_DIR    = $RUN_DIR"
 echo "  CKPT_DIR   = $CKPT_DIR"
+echo "  DOWNLOAD_DIR= $DOWNLOAD_DIR"
 echo "  TOP_FILE   = $TOP_FILE"
 echo "  TASK_ID    = $TASK_ID"
 

@@ -204,9 +204,6 @@ def main():
     resume_from = os.environ.get("RESUME_FROM", "latest").strip().lower()
     # RESUME_FROM: latest | best | best_feasible
 
-    os.makedirs(run_dir, exist_ok=True)
-    os.makedirs(ckpt_dir, exist_ok=True)
-
     # -----------------------
     # File paths
     # -----------------------
@@ -251,6 +248,9 @@ def main():
         print(f"  resume_from           = {resume_from}")
         print(f"  QTorch module         = {Path(QTorch.__file__).resolve()}")
         return
+
+    os.makedirs(run_dir, exist_ok=True)
+    os.makedirs(ckpt_dir, exist_ok=True)
 
     time1 = datetime.now()
 
