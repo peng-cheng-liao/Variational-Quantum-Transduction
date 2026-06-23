@@ -27,7 +27,7 @@ from QTorch.Transduction import transduction_protocol_CoherentInfo_GKP2_thermal_
 
 
 RUN_ID = 93
-SOURCE_RUN_ID = "64_v2_2"
+SOURCE_RUN_ID = 94
 DEFAULT_ETAS = np.around(np.arange(0.05, 1.0, 0.05), 2)
 
 DEFAULT_D1 = 2
@@ -43,33 +43,6 @@ SETUP_PRESETS = [
         "initial_p_nbar": 0.1,
         "kappa_o": 0.99,
         "kappa_m": 0.99,
-        "n_o": 0.0,
-        "n_m": 0.0,
-    },
-    {
-        "name": "noisy_nPth_0p01",
-        "output_subdir": "noisy_nPth=0p01_kS=0p99_kP=0p99",
-        "initial_p_nbar": 0.01,
-        "kappa_o": 0.99,
-        "kappa_m": 0.99,
-        "n_o": 0.0,
-        "n_m": 0.0,
-    },
-    {
-        "name": "noisy_nPth_0p001",
-        "output_subdir": "noisy_nPth=0p001_kS=0p99_kP=0p99",
-        "initial_p_nbar": 0.001,
-        "kappa_o": 0.99,
-        "kappa_m": 0.99,
-        "n_o": 0.0,
-        "n_m": 0.0,
-    },
-    {
-        "name": "noiseless_reference",
-        "output_subdir": "noiseless_nPth=0_kS=1_kP=1",
-        "initial_p_nbar": 0.0,
-        "kappa_o": 1.0,
-        "kappa_m": 1.0,
         "n_o": 0.0,
         "n_m": 0.0,
     },
@@ -111,6 +84,8 @@ def _selection_int(source_info, key, default):
     selection = source_info.get("selection_summary", {})
     value = selection.get(key, "")
     if value in ("", None):
+        value = source_info.get(key, "")
+    if value in ("", None):
         return default
     return int(value)
 
@@ -137,7 +112,7 @@ def load_protocol_settings(source_info):
         "source_d1": source_d1,
         "source_d2": source_d2,
         "source_j2": source_j2,
-        "source_metadata_differs_from_job64_defaults": (source_d1, source_d2, source_j2) != (
+        "source_metadata_differs_from_default_protocol_settings": (source_d1, source_d2, source_j2) != (
             DEFAULT_D1,
             DEFAULT_D2,
             DEFAULT_J2,
@@ -167,6 +142,8 @@ def load_parameters(eta, device):
 def source_score(source_info, *, required=False):
     selection = source_info.get("selection_summary", {})
     score = optional_float(selection.get("score", ""))
+    if score is None:
+        score = optional_float(source_info.get("score", ""))
     if required and score is None:
         raise ValueError("Missing source_info['selection_summary']['score']")
     return score
@@ -329,8 +306,8 @@ def calculate_eta(args, eta):
         "source_j2": protocol["source_j2"],
         "source_score": selected_source_score,
         "uses_source_protocol_settings": protocol["uses_source_protocol_settings"],
-        "source_metadata_differs_from_job64_defaults": protocol[
-            "source_metadata_differs_from_job64_defaults"
+        "source_metadata_differs_from_default_protocol_settings": protocol[
+            "source_metadata_differs_from_default_protocol_settings"
         ],
         "source_parameter_file": relative_to_repo(parameter_path),
         "source_info": source_info,
@@ -482,7 +459,7 @@ def write_summary(output_dir, rows):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Evaluate noisy CI for GKP parameters from run 64_v2_2 as job 93."
+        description="Evaluate noisy CI for corrected GKP parameters from run 94 as job 93."
     )
     parser.add_argument("--list-setups", action="store_true")
     parser.add_argument("--setup", choices=sorted(SETUP_BY_NAME))

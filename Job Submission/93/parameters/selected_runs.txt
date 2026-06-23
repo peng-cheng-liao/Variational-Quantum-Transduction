@@ -1,22 +1,23 @@
-mask_threshold	2.01
-selection_rule	highest masked CI per eta among candidates with parameters.npy
-eta	randomization	d1	d2	j2	best_masked_ci	copied_files	missing_optional_files
-eta=0.05	0	5	3	2	0.0	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.10	0	2	1	0	0.0	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.15	2	2	2	0	0.08705160730909878	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.20	5	2	2	1	0.304582577753022	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.25	0	3	4	2	0.48968395290413014	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.30	3	2	1	0	0.6572127490510775	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.35	6	2	1	0	0.6902539744641643	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.40	5	2	2	1	0.5333927213282927	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.45	8	3	4	2	0.2549690099563158	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.50	2	2	3	1	0.0024954654797171294	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.55	5	3	3	1	0.1937353834037796	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.60	8	2	2	1	0.3888361005969583	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.65	2	4	4	1	0.5836089508518993	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.70	0	4	4	3	0.7853952688467873	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.75	8	5	4	3	0.9925771747657188	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.80	0	4	4	1	1.1922102666992622	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.85	9	4	4	1	1.394815944282477	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.90	3	5	4	1	1.4384181362231998	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
-eta=0.95	0	4	4	3	1.7687217371980986	ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy	
+source_root	Data_HPC/94/Data-Download
+selection_rule	best feasible corrected GKP parameters from run 94
+job93_note	Noisy GKP rerun only: n_th^P=0.1, kappa_o=kappa_m=0.99, no auxiliary A mode
+eta	randomization	d1	d2	j2	score	best_index	source_folder	source_prefix
+0.05	3	5	4	0	-0.00034083201168222388	4999	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.05_d1=5_d2=4	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.05_d1=5_d2=4/j2=0_randomization=3_
+0.10	4	2	4	0	-0.00011867155411704466	4999	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.10_d1=2_d2=4	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.10_d1=2_d2=4/j2=0_randomization=4_
+0.15	5	4	1	0	0.16300693275898936	4999	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.15_d1=4_d2=1	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.15_d1=4_d2=1/j2=0_randomization=5_
+0.20	9	3	1	0	0.47840360328182685	4999	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.20_d1=3_d2=1	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.20_d1=3_d2=1/j2=0_randomization=9_
+0.25	4	3	1	0	0.72049369983898104	4998	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.25_d1=3_d2=1	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.25_d1=3_d2=1/j2=0_randomization=4_
+0.30	1	2	1	0	0.68585497989500288	4999	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.30_d1=2_d2=1	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.30_d1=2_d2=1/j2=0_randomization=1_
+0.35	3	2	1	0	0.73126073683581749	4999	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.35_d1=2_d2=1	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.35_d1=2_d2=1/j2=0_randomization=3_
+0.40	3	2	1	0	0.59390529662586111	4998	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.40_d1=2_d2=1	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.40_d1=2_d2=1/j2=0_randomization=3_
+0.45	0	2	1	0	0.32088454735378225	4986	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.45_d1=2_d2=1	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.45_d1=2_d2=1/j2=0_randomization=0_
+0.50	2	3	1	0	0.0031722640973084193	4996	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.50_d1=3_d2=1	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.50_d1=3_d2=1/j2=0_randomization=2_
+0.55	4	3	3	1	0.19562362227258268	217	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.55_d1=3_d2=3	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.55_d1=3_d2=3/j2=1_randomization=4_
+0.60	8	2	2	1	0.40017358866528951	4999	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.60_d1=2_d2=2	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.60_d1=2_d2=2/j2=1_randomization=8_
+0.65	8	4	5	4	0.58889902730026744	4999	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.65_d1=4_d2=5	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.65_d1=4_d2=5/j2=4_randomization=8_
+0.70	5	4	5	4	0.79834671324698103	3787	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.70_d1=4_d2=5	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.70_d1=4_d2=5/j2=4_randomization=5_
+0.75	5	5	5	4	1.0047596124020222	3616	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.75_d1=5_d2=5	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.75_d1=5_d2=5/j2=4_randomization=5_
+0.80	8	5	5	1	1.2283494695034642	2236	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.80_d1=5_d2=5	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.80_d1=5_d2=5/j2=1_randomization=8_
+0.85	4	5	4	3	1.4563415993066036	33	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.85_d1=5_d2=4	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.85_d1=5_d2=4/j2=3_randomization=4_
+0.90	0	5	5	1	1.7004858357075816	3604	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.90_d1=5_d2=5	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.90_d1=5_d2=5/j2=1_randomization=0_
+0.95	3	5	5	1	1.9363271887156528	3846	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.95_d1=5_d2=5	/home1/liaopeng/QuantumTransduction/94/Data/eta=0.95_d1=5_d2=5/j2=1_randomization=3_

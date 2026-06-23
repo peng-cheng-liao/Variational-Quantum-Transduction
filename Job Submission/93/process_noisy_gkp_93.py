@@ -9,6 +9,9 @@ import numpy as np
 job_dir = Path(__file__).resolve().parent
 RUN_ID = 93
 DEFAULT_ETAS = np.around(np.arange(0.05, 1.0, 0.05), 2)
+SETUP_OUTPUTS = [
+    ("noisy", "noisy_nPth=0p1_kS=0p99_kP=0p99"),
+]
 
 
 def eta_folder(eta):
@@ -51,6 +54,7 @@ def read_eta_result(setup_dir, eta_dir, setup_name, eta):
         "j2": config.get("j2", ""),
         "Nt": config.get("Nt", ""),
         "NR": config.get("NR", ""),
+        "source_score": config.get("source_score", ""),
         "elapsed_seconds": config.get("elapsed_seconds", ""),
         "source_parameter_file": config.get("source_parameter_file", ""),
         "output_file": config.get("output_file", str(ci_path)),
@@ -75,6 +79,7 @@ def write_combined_summary(output_root, rows):
         "j2",
         "Nt",
         "NR",
+        "source_score",
         "source_parameter_file",
         "elapsed_seconds",
         "output_file",
@@ -110,11 +115,10 @@ def main():
     if not output_root.is_absolute():
         output_root = (job_dir / output_root).resolve()
 
-    setup_dirs = sorted([p for p in output_root.iterdir() if p.is_dir()]) if output_root.exists() else []
     rows = []
     warnings = []
-    for setup_dir in setup_dirs:
-        setup_name = setup_dir.name
+    for setup_name, setup_folder in SETUP_OUTPUTS:
+        setup_dir = output_root / setup_folder
         for eta in DEFAULT_ETAS:
             eta_dir = setup_dir / eta_folder(eta)
             row = read_eta_result(setup_dir, eta_dir, setup_name, eta)

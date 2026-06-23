@@ -9,20 +9,19 @@
 #SBATCH --job-name=noisy_gkp_93
 #SBATCH --output=logs/noisy_gkp_93_%A_%a.out
 #SBATCH --error=logs/noisy_gkp_93_%A_%a.err
-#SBATCH --array=0-75
+#SBATCH --array=0-18
 
 # Usage from this folder:
-#   Full run for all four setups and all etas, reusing existing outputs:
+#   Full run for the fixed noisy setup and all etas, reusing existing outputs:
 #     sbatch submit_noisy_gkp_93.sbatch
-#   Full rerun for all four setups and all etas, overwriting existing outputs:
+#   Full rerun for the fixed noisy setup and all etas, overwriting existing outputs:
 #     sbatch --export=ALL,RECOMPUTE=1 submit_noisy_gkp_93.sbatch
-#   Only noiseless validation, all etas:
-#     python -u calculate_noisy_gkp_93.py --setup noiseless_reference --all-etas --validate-zero-noise --recompute
 #   One eta/debug run:
-#     python -u calculate_noisy_gkp_93.py --setup noiseless_reference --eta 0.30 --validate-zero-noise --recompute --num-threads 1
+#     python -u calculate_noisy_gkp_93.py --setup noisy --eta 0.30 --dry-run --num-threads 1
 #
 # The array writes to ./Data/<setup-output-subdir>/eta=*/. Existing outputs are
 # reused unless calculate_noisy_gkp_93.py is run explicitly with --recompute.
+# Fixed setup: n_th^P=0.1, kappa_o=kappa_m=0.99, n_o=n_m=0.
 
 set -euo pipefail
 
@@ -52,7 +51,7 @@ export MPLCONFIGDIR="${SCRIPT_DIR}/.mplconfig"
 mkdir -p "${MPLCONFIGDIR}"
 
 NUM_ETAS=19
-SETUPS=(noisy noisy_nPth_0p01 noisy_nPth_0p001 noiseless_reference)
+SETUPS=(noisy)
 
 TASK_ID="${SLURM_ARRAY_TASK_ID}"
 SETUP_IDX=$(( TASK_ID / NUM_ETAS ))

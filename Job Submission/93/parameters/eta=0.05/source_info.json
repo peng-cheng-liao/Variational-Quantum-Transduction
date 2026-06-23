@@ -1,41 +1,38 @@
 {
-  "eta": 0.05,
-  "gkp_constants": {
-    "NR_default": 2,
-    "Nt": 30,
-    "d1_default": 2,
-    "d2_default": 1,
-    "j2_default": 0
-  },
-  "parameter_names": [
-    "delta1",
-    "r_hex1",
-    "phi1_hex",
-    "phi2_hex",
-    "delta2",
-    "r_hex2",
-    "phi3_hex",
-    "phi4_hex"
+  "best_index": 4999,
+  "copied_files": [
+    "ci_list.npy",
+    "ns_list.npy",
+    "np_list.npy",
+    "parameters.npy",
+    "best_index.txt",
+    "best_feasible_ci.txt",
+    "source_info.json",
+    "state_RS.npy",
+    "state_P.npy"
   ],
-  "parameter_shape": [
-    8
-  ],
-  "run_id": 93,
+  "d1": 5,
+  "d2": 4,
+  "eta": "0.05",
+  "eta_source": "0.05",
+  "j2": 0,
+  "job93_parameter_file": "Job Submission/93/parameters/eta=0.05/parameters_best_feasible.npy",
+  "job93_parameter_source_root": "Data_HPC/94/Data-Download",
+  "job93_rerun_note": "Copied from Data_HPC/94/Data-Download for Job 93 noisy GKP rerun with n_th^P=0.1 and kappa_o=kappa_m=0.99; no auxiliary A mode.",
+  "missing_optional_files": [],
+  "randomization": 3,
+  "score": "-0.00034083201168222388",
+  "selection_note": "Candidates without best_parameters.npy were skipped.",
   "selection_summary": {
-    "copied_files": "ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy",
-    "d1": "5",
-    "d2": "3",
-    "dest": "/home1/liaopeng/QuantumTransduction/64_v2/Data-download-2/eta=0.05",
-    "eta": "0.05",
-    "eta_source": "0.05",
-    "folder": "/home1/liaopeng/QuantumTransduction/64_v2/Data/eta=0.05_d1=5_d2=3",
-    "j2": "2",
-    "missing_optional_files": "",
-    "prefix": "/home1/liaopeng/QuantumTransduction/64_v2/Data/eta=0.05_d1=5_d2=3/j2=2_randomization=0_",
-    "randomization": "0",
-    "score": "0.0"
+    "best_index": 4999,
+    "d1": 5,
+    "d2": 4,
+    "j2": 0,
+    "randomization": 3,
+    "score": "-0.00034083201168222388"
   },
-  "source_note": "Copied from Data_HPC/64_v2_2 for self-contained job 93.",
-  "source_parameter_file": "Data_HPC/64_v2_2/eta=0.05/parameters.npy",
-  "source_run_id": "64_v2_2"
+  "source_folder": "/home1/liaopeng/QuantumTransduction/94/Data/eta=0.05_d1=5_d2=4",
+  "source_prefix": "/home1/liaopeng/QuantumTransduction/94/Data/eta=0.05_d1=5_d2=4/j2=0_randomization=3_",
+  "verification_abs_error": 0.0,
+  "verification_status": "verified"
 }
