@@ -104,6 +104,7 @@ A: Calcualte Entanglement Fidelity with TMSV state as fixed input in RS, MM enco
 91:GKP state match mix n=2,fix the angle and squeeze for all logical states
 92:Noisy coherent information evaluation of run 84, Non-adaptive EA n=2, compare kappa_o=kappa_m=0.99 with initial_p_thermal_nbar=0.1, 0.01, 0.001 and noiseless reference initial_p_thermal_nbar=0 kappa_o=kappa_m=1
 93:Noisy coherent information evaluation of GKP run 64_v2_2, using transduction_protocol_CoherentInfo_GKP2_thermal_noise, d1=2 d2=1 j2=0 Nt=30, compare kappa_o=kappa_m=0.99 with initial_p_thermal_nbar=0.1, 0.01, 0.001 and noiseless reference initial_p_thermal_nbar=0 kappa_o=kappa_m=1; self-contained folder with QTorch, parameters, and local Data output.
+94: Fixed GKP coherent-information training rerun based on 64_v2; saves best feasible parameters/states before optimizer step, includes self-contained QTorch, raw Data, Data-Download processing, and Slurm sweep over eta, d1, d2, j2, randomization.
 95: Noise-affected VQT sweep mirroring Job 92 using updated ECD-MM-EA thermal-noise function; scans all eta with n_th^P=0.1, kappa_S=kappa_P=0.99, kappa_A in {1.0,0.95,0.9}; outputs saved to Data_HPC/95.
 
 A: Calculate Entanglement Fidelity with TMSV state as fixed input in RS

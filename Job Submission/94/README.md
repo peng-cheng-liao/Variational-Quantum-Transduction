@@ -23,3 +23,40 @@ Process results:
 ```bash
 python process_gkp_94.py --overwrite
 ```
+
+## Parameter recomputation validation
+
+Use `verify_gkp94_parameters.py` to recompute coherent information from each
+selected `parameters.npy` file and compare it with the processed best feasible
+CI and selection summary score.
+
+From repo root:
+
+```bash
+python "Job Submission/94/verify_gkp94_parameters.py" \
+  --data-root Data_HPC/94/Data-Download-partial-10000 \
+  --num-threads 1 \
+  --strict
+```
+
+From HPC folder `94`:
+
+```bash
+python verify_gkp94_parameters.py \
+  --data-root Data-Download-partial-10000 \
+  --num-threads 1 \
+  --strict
+```
+
+For a few etas:
+
+```bash
+python verify_gkp94_parameters.py \
+  --data-root Data-Download-partial-10000 \
+  --etas 0.05 0.30 0.65 \
+  --num-threads 1
+```
+
+By default the TSV report is written to
+`<data-root>/parameter_recompute_validation.tsv`, and the JSON summary is
+written to `<data-root>/parameter_recompute_validation.json`.

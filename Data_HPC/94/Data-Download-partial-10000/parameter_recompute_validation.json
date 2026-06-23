@@ -1,0 +1,27 @@
+{
+  "arguments": {
+    "data_root": "/Users/liaopengcheng_mac/Library/Mobile Documents/com~apple~CloudDocs/Code/Variational-Quantum-Transduction/Data_HPC/94/Data-Download-partial-10000",
+    "dtype": "auto",
+    "etas": null,
+    "json_output": "/Users/liaopengcheng_mac/Library/Mobile Documents/com~apple~CloudDocs/Code/Variational-Quantum-Transduction/Data_HPC/94/Data-Download-partial-10000/parameter_recompute_validation.json",
+    "nt": 30,
+    "num_threads": 1,
+    "output": "/Users/liaopengcheng_mac/Library/Mobile Documents/com~apple~CloudDocs/Code/Variational-Quantum-Transduction/Data_HPC/94/Data-Download-partial-10000/parameter_recompute_validation.tsv",
+    "strict": true,
+    "tol": 1e-06
+  },
+  "failed": 0,
+  "failed_etas": [],
+  "maximum_ci_error": 3.100734202732269e-08,
+  "maximum_np_error": 7.746103491967915e-08,
+  "maximum_ns_error": 6.347387859761966e-08,
+  "passed": 14,
+  "total_selected_rows_checked": 14,
+  "warnings": [
+    "selection_summary.tsv contains no_valid_candidate row for eta=0.75",
+    "selection_summary.tsv contains no_valid_candidate row for eta=0.80",
+    "selection_summary.tsv contains no_valid_candidate row for eta=0.85",
+    "selection_summary.tsv contains no_valid_candidate row for eta=0.90",
+    "selection_summary.tsv contains no_valid_candidate row for eta=0.95"
+  ]
+}

@@ -29,6 +29,8 @@ n_p = 2
 energy_tol = 0.01
 
 VQT_RUN_ID = 84
+GKP_SELECTED_RUN = data_dir / "64-v2_2" / "selection_summary.tsv"
+GKP94_SELECTED_RUN = data_dir / "94" / "Data-Download" / "selection_summary.tsv"
 
 
 def eta_folder(eta):
@@ -47,12 +49,23 @@ def load_best_feasible_ci(run_id, etas=etalist):
     return np.array(ci_list)
 
 
-def load_gkp_selected_ci(etas=etalist):
-    summary_path = data_dir / "64_v2_2" / "selection_summary.tsv"
+def load_selected_ci(summary_path, etas=etalist):
     with summary_path.open(newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
-    score_by_eta = {round(float(row["eta"]), 2): float(row["score"]) for row in rows}
+    score_by_eta = {
+        round(float(row["eta"]), 2): float(row["score"])
+        for row in rows
+        if row.get("status", "").startswith("selected") and row.get("score", "")
+    }
     return np.array([score_by_eta.get(round(float(eta), 2), np.nan) for eta in etas])
+
+
+def load_gkp_selected_ci(etas=etalist):
+    return load_selected_ci(GKP_SELECTED_RUN, etas)
+
+
+def load_gkp94_selected_ci(etas=etalist):
+    return load_selected_ci(GKP94_SELECTED_RUN, etas)
 
 
 # ECD MM
@@ -217,6 +230,12 @@ def plot_GKP_n2_Nt30_v2():
     plt.plot(etalist, ci_list, label="GKP-QT", ls="--", marker="*", color=default_colors[1])
 
 
+def plot_GKP94_n2_Nt30():
+    ci_list = load_gkp94_selected_ci()
+    print("GKP Job 94", ci_list)
+    plt.plot(etalist, ci_list, label="GKP-QT", ls="-.", marker="P", color=default_colors[1])
+
+
 def plot_pure_loss_capacity(n_s):
     etalist = np.arange(0.05, 1.0, 0.05)
     cilist = []
@@ -243,7 +262,8 @@ def main():
     plot_ECD_M()
     #plot_ECD_MM_fixedinput()
     # plot_GKP_n2_Nt30()
-    plot_GKP_n2_Nt30_v2()
+    #plot_GKP_n2_Nt30_v2()
+    plot_GKP94_n2_Nt30()
     plot_EA_TMS()
     plot_pure_loss_capacity(2)
 
