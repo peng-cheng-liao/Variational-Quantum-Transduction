@@ -19,11 +19,14 @@ import numpy as np
 JOB97_DATA_PATH = REPO_ROOT / "Data_HPC" / "97" / "robust_ci_summary.csv"
 JOB98_DIR = REPO_ROOT / "Data_HPC" / "98"
 JOB98_DATA_PATH = JOB98_DIR / "vqt_eta_uncertainty_fixed_eta0_0p30.csv"
+VQT_OPT_DATA_DIR = REPO_ROOT / "Data_HPC" / "84"
 FIG_DIR = REPO_ROOT / "Figs"
 
 SCHEMES = ["VQT", "GKP", "TMS-EA", "QT"]
 RETAINED_DELTA = 0.05
+JOB98_ETA0 = 0.30
 JOB98_EXPECTED_DELTAS = [round(x, 2) for x in np.arange(0.01, 0.101, 0.01)]
+OPT_REFERENCE_DELTAS = [0.05, 0.10]
 LABELS = {
     "VQT": "VQT",
     "GKP": "GKP",
@@ -60,6 +63,20 @@ def parse_float(value):
 
 def delta_key(value):
     return f"{parse_float(value):.2f}"
+
+
+def read_float(path):
+    if not path.exists():
+        raise FileNotFoundError(f"Missing optimized VQT reference file: {path}")
+    return float(path.read_text().strip())
+
+
+def eta_folder(eta):
+    return f"eta={float(eta):.2f}"
+
+
+def load_optimized_vqt_ci(eta):
+    return read_float(VQT_OPT_DATA_DIR / eta_folder(eta) / "best_feasible_ci.txt")
 
 
 def load_rows(path, missing_hint):
@@ -144,6 +161,18 @@ def load_job98():
     return rows
 
 
+def load_job98_reference_points():
+    reference = {
+        "nominal": load_optimized_vqt_ci(JOB98_ETA0),
+        "minus": [],
+        "plus": [],
+    }
+    for delta in OPT_REFERENCE_DELTAS:
+        reference["minus"].append((delta, load_optimized_vqt_ci(JOB98_ETA0 - delta)))
+        reference["plus"].append((delta, load_optimized_vqt_ci(JOB98_ETA0 + delta)))
+    return reference
+
+
 def plot_job97_delta(ax, grouped):
     delta = delta_key(RETAINED_DELTA)
     for scheme in SCHEMES:
@@ -171,10 +200,16 @@ def plot_job97_delta(ax, grouped):
     ax.legend(loc="upper left", frameon=False)
 
 
-def plot_job98_delta_scan(ax, rows):
-    deltas = np.array([parse_float(row["delta"]) for row in rows], dtype=float)
-    ci_minus = np.array([parse_float(row["CI_minus"]) for row in rows], dtype=float)
-    ci_plus = np.array([parse_float(row["CI_plus"]) for row in rows], dtype=float)
+def plot_job98_delta_scan(ax, rows, reference):
+    deltas = np.array([0.0] + [parse_float(row["delta"]) for row in rows], dtype=float)
+    ci_minus = np.array(
+        [reference["nominal"]] + [parse_float(row["CI_minus"]) for row in rows],
+        dtype=float,
+    )
+    ci_plus = np.array(
+        [reference["nominal"]] + [parse_float(row["CI_plus"]) for row in rows],
+        dtype=float,
+    )
     finite_minus = np.isfinite(deltas) & np.isfinite(ci_minus)
     finite_plus = np.isfinite(deltas) & np.isfinite(ci_plus)
     if not np.all(finite_minus) or not np.all(finite_plus):
@@ -196,9 +231,32 @@ def plot_job98_delta_scan(ax, rows):
         marker="s",
         linestyle="--",
     )
+    ref_minus = np.array(reference["minus"], dtype=float)
+    ref_plus = np.array(reference["plus"], dtype=float)
+    ax.scatter(
+        ref_minus[:, 0],
+        ref_minus[:, 1],
+        label=r"optimized at $\eta_0-\delta$",
+        color=COLORS["VQT"],
+        marker="D",
+        edgecolors="black",
+        linewidths=0.8,
+        zorder=4,
+    )
+    ax.scatter(
+        ref_plus[:, 0],
+        ref_plus[:, 1],
+        label=r"optimized at $\eta_0+\delta$",
+        color=COLORS["GKP"],
+        marker="D",
+        edgecolors="black",
+        linewidths=0.8,
+        zorder=4,
+    )
     ax.set_title(r"$\eta_0=0.30$ fixed VQT parameters")
     ax.set_xlabel(r"Uncertainty $\delta$")
     ax.set_ylabel("Coherent information")
+    ax.set_xlim(left=0.0)
     ax.tick_params(axis="both", which="major")
     ax.grid(True, alpha=0.25, linewidth=0.7)
     ax.legend(loc="best", frameon=False)
@@ -207,6 +265,7 @@ def plot_job98_delta_scan(ax, rows):
 def main():
     job97_grouped = load_job97()
     job98_rows = load_job98()
+    job98_reference = load_job98_reference_points()
 
     plt.rcParams.update(
         {
@@ -222,7 +281,7 @@ def main():
 
     fig, axes = plt.subplots(1, 2, figsize=(10.0, 4.2))
     plot_job97_delta(axes[0], job97_grouped)
-    plot_job98_delta_scan(axes[1], job98_rows)
+    plot_job98_delta_scan(axes[1], job98_rows, job98_reference)
 
     fig.tight_layout()
     FIG_DIR.mkdir(exist_ok=True)
