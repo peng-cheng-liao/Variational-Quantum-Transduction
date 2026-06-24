@@ -19,6 +19,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(SCRIPT_DIR / ".mplconfig"))
 
 ETA0 = 0.30
 DEFAULT_DELTAS = [round(x, 2) for x in np.arange(0.01, 0.101, 0.01)]
+DEFAULT_OUTPUT_STEM = "vqt_eta_uncertainty_fixed_eta0_0p30"
 VQT_RUN_ID = 84
 VQT_DEPTH = 20
 VQT_NT = 30
@@ -176,13 +177,18 @@ def make_row(source, delta, minus_result, plus_result):
     }
 
 
-def write_outputs(rows, output_dir, source, deltas):
+def write_outputs(rows, output_dir, source, deltas, output_stem):
     output_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = output_dir / "vqt_eta_uncertainty_fixed_eta0_0p30.csv"
-    json_path = output_dir / "vqt_eta_uncertainty_fixed_eta0_0p30.json"
-    npz_path = output_dir / "vqt_eta_uncertainty_fixed_eta0_0p30.npz"
-    config_path = output_dir / "config.json"
-    readme_path = output_dir / "README.md"
+    csv_path = output_dir / f"{output_stem}.csv"
+    json_path = output_dir / f"{output_stem}.json"
+    npz_path = output_dir / f"{output_stem}.npz"
+    suffix = "" if output_stem == DEFAULT_OUTPUT_STEM else f"_{output_stem}"
+    config_path = output_dir / f"config{suffix}.json"
+    readme_path = output_dir / f"README{suffix}.md"
+
+    for path in [csv_path, json_path, npz_path, config_path, readme_path]:
+        if path.exists():
+            raise FileExistsError(f"Refusing to overwrite existing Job 98 output: {path}")
 
     with csv_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=OUTPUT_FIELDS, lineterminator="\n")
@@ -205,6 +211,7 @@ def write_outputs(rows, output_dir, source, deltas):
         "job": 98,
         "eta0": ETA0,
         "deltas": deltas,
+        "output_stem": output_stem,
         "scheme": "VQT",
         "source_parameter_eta": ETA0,
         "source_parameter_file": relpath(source["parameter_path"]),
@@ -226,7 +233,7 @@ def write_outputs(rows, output_dir, source, deltas):
         "- The parameter set is selected from `Data_HPC/84/eta=0.30/parameters_best_feasible.npy`.\n"
         "- The selected run-84 seed is recorded in `config.json` and in the CSV source fields.\n"
         "- The parameter set is not reoptimized for shifted eta values.\n"
-        "- Deltas are `0.01, 0.02, ..., 0.10`.\n"
+        f"- Deltas are `{', '.join(f'{delta:.2f}' for delta in deltas)}`.\n"
         "- `minus` means `CI(eta0 - delta)` evaluated with the fixed eta0 parameter set.\n"
         "- `plus` means `CI(eta0 + delta)` evaluated with the fixed eta0 parameter set.\n",
     )
@@ -244,15 +251,17 @@ def parse_args():
     )
     parser.add_argument("--output", type=Path, default=DATA_ROOT / "98")
     parser.add_argument("--deltas", nargs="+", type=float, default=DEFAULT_DELTAS)
+    parser.add_argument("--output-stem", default=DEFAULT_OUTPUT_STEM)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     deltas = [round(float(delta), 2) for delta in args.deltas]
-    expected_deltas = DEFAULT_DELTAS
-    if deltas != expected_deltas:
-        raise ValueError(f"Job 98 expects delta grid {expected_deltas}; got {deltas}")
+    if not deltas:
+        raise ValueError("At least one delta must be supplied")
+    if deltas != sorted(set(deltas)):
+        raise ValueError(f"Deltas must be unique and sorted; got {deltas}")
 
     source = resolve_parameter_source(ETA0)
     print(f"Fixed VQT parameter source: {relpath(source['parameter_path'])}")
@@ -277,8 +286,8 @@ def main():
             f"CI_minus={float(row['CI_minus']):.12g} CI_plus={float(row['CI_plus']):.12g}"
         )
 
-    assert len(rows) == 10, f"expected 10 output rows, got {len(rows)}"
-    write_outputs(rows, args.output, source, deltas)
+    assert len(rows) == len(deltas), f"expected {len(deltas)} output rows, got {len(rows)}"
+    write_outputs(rows, args.output, source, deltas, args.output_stem)
 
 
 if __name__ == "__main__":

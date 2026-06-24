@@ -18,15 +18,18 @@ import numpy as np
 
 JOB97_DATA_PATH = REPO_ROOT / "Data_HPC" / "97" / "robust_ci_summary.csv"
 JOB98_DIR = REPO_ROOT / "Data_HPC" / "98"
-JOB98_DATA_PATH = JOB98_DIR / "vqt_eta_uncertainty_fixed_eta0_0p30.csv"
+JOB98_DATA_PATHS = [
+    JOB98_DIR / "vqt_eta_uncertainty_fixed_eta0_0p30.csv",
+    JOB98_DIR / "vqt_eta_uncertainty_fixed_eta0_0p30_delta_0p11_0p20.csv",
+]
 VQT_OPT_DATA_DIR = REPO_ROOT / "Data_HPC" / "84"
 FIG_DIR = REPO_ROOT / "Figs"
 
 SCHEMES = ["VQT", "GKP", "TMS-EA", "QT"]
 RETAINED_DELTA = 0.05
 JOB98_ETA0 = 0.30
-JOB98_EXPECTED_DELTAS = [round(x, 2) for x in np.arange(0.01, 0.101, 0.01)]
-OPT_REFERENCE_DELTAS = [0.05, 0.10]
+JOB98_EXPECTED_DELTAS = [round(x, 2) for x in np.arange(0.01, 0.201, 0.01)]
+OPT_REFERENCE_DELTAS = [0.05, 0.10, 0.15, 0.20]
 LABELS = {
     "VQT": "VQT",
     "GKP": "GKP",
@@ -136,27 +139,32 @@ def load_job98():
         raise FileNotFoundError(
             f"Missing {JOB98_DIR}. Run Job Submission/98/calculate_fixed_eta0_vqt_uncertainty.py first."
         )
-    rows = load_rows(
-        JOB98_DATA_PATH,
-        "Run Job Submission/98/calculate_fixed_eta0_vqt_uncertainty.py first.",
-    )
-    validate_columns(
-        rows,
-        {
-            "eta0",
-            "delta",
-            "eta_eval_minus",
-            "eta_eval_plus",
-            "CI_minus",
-            "CI_plus",
-        },
-        JOB98_DATA_PATH,
-    )
+    rows = []
+    for path in JOB98_DATA_PATHS:
+        path_rows = load_rows(
+            path,
+            "Run Job Submission/98/calculate_fixed_eta0_vqt_uncertainty.py for the missing delta range first.",
+        )
+        validate_columns(
+            path_rows,
+            {
+                "eta0",
+                "delta",
+                "eta_eval_minus",
+                "eta_eval_plus",
+                "CI_minus",
+                "CI_plus",
+            },
+            path,
+        )
+        rows.extend(path_rows)
     rows.sort(key=lambda row: parse_float(row["delta"]))
     deltas = [round(parse_float(row["delta"]), 2) for row in rows]
+    if len(deltas) != len(set(deltas)):
+        raise RuntimeError(f"Duplicate Job 98 delta values found across {JOB98_DATA_PATHS}: {deltas}")
     if deltas != JOB98_EXPECTED_DELTAS:
         raise RuntimeError(
-            f"Job 98 delta grid mismatch in {JOB98_DATA_PATH}: expected {JOB98_EXPECTED_DELTAS}, got {deltas}"
+            f"Job 98 delta grid mismatch across {JOB98_DATA_PATHS}: expected {JOB98_EXPECTED_DELTAS}, got {deltas}"
         )
     return rows
 
@@ -213,7 +221,7 @@ def plot_job98_delta_scan(ax, rows, reference):
     finite_minus = np.isfinite(deltas) & np.isfinite(ci_minus)
     finite_plus = np.isfinite(deltas) & np.isfinite(ci_plus)
     if not np.all(finite_minus) or not np.all(finite_plus):
-        raise RuntimeError(f"Job 98 data contain non-finite CI values in {JOB98_DATA_PATH}")
+        raise RuntimeError(f"Job 98 data contain non-finite CI values in {JOB98_DATA_PATHS}")
 
     ax.plot(
         deltas,
