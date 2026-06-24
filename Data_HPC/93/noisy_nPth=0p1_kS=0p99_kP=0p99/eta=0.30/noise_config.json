@@ -3,9 +3,9 @@
   "Nt": 30,
   "d1": 2,
   "d2": 1,
-  "elapsed_seconds": 1.2663055770099163,
+  "elapsed_seconds": 1.4661018450278789,
   "eta": 0.3,
-  "finish_time": "2026-06-15T17:43:47.324888",
+  "finish_time": "2026-06-23T22:28:25.393736",
   "function": "transduction_protocol_CoherentInfo_GKP2_thermal_noise",
   "initial_p_thermal_nbar": 0.1,
   "initial_thermal_prob_tol": 1e-14,
@@ -18,59 +18,57 @@
   "model": "canonical_unitary_completion_GKP_preparation_plus_initial_P_thermal_branches_plus_output_pure_loss",
   "n_m": 0.0,
   "n_o": 0.0,
-  "np_input": 1.9841291971531472,
-  "ns_input": 1.8295088681641896,
+  "np_input": 1.9323767241044487,
+  "ns_input": 1.999569305651763,
   "output_file": "QuantumTransduction/93/Data/noisy_nPth=0p1_kS=0p99_kP=0p99/eta=0.30/best_feasible_ci.txt",
   "run_id": 93,
   "setup_name": "noisy",
   "source_d1": 2,
   "source_d2": 1,
   "source_info": {
-    "eta": 0.3,
-    "gkp_constants": {
-      "NR_default": 2,
-      "Nt": 30,
-      "d1_default": 2,
-      "d2_default": 1,
-      "j2_default": 0
-    },
-    "parameter_names": [
-      "delta1",
-      "r_hex1",
-      "phi1_hex",
-      "phi2_hex",
-      "delta2",
-      "r_hex2",
-      "phi3_hex",
-      "phi4_hex"
+    "best_index": 4999,
+    "copied_files": [
+      "ci_list.npy",
+      "ns_list.npy",
+      "np_list.npy",
+      "parameters.npy",
+      "best_index.txt",
+      "best_feasible_ci.txt",
+      "source_info.json",
+      "state_RS.npy",
+      "state_P.npy"
     ],
-    "parameter_shape": [
-      8
-    ],
-    "run_id": 93,
+    "d1": 2,
+    "d2": 1,
+    "eta": "0.30",
+    "eta_source": "0.30",
+    "j2": 0,
+    "job93_parameter_file": "Job Submission/93/parameters/eta=0.30/parameters_best_feasible.npy",
+    "job93_parameter_source_root": "Data_HPC/94/Data-Download",
+    "job93_rerun_note": "Copied from Data_HPC/94/Data-Download for Job 93 noisy GKP rerun with n_th^P=0.1 and kappa_o=kappa_m=0.99; no auxiliary A mode.",
+    "missing_optional_files": [],
+    "randomization": 1,
+    "score": "0.68585497989500288",
+    "selection_note": "Candidates without best_parameters.npy were skipped.",
     "selection_summary": {
-      "copied_files": "ci_list.npy,ns_list.npy,np_list.npy,parameters.npy,state_P.npy,state_RS.npy",
-      "d1": "2",
-      "d2": "1",
-      "dest": "/home1/liaopeng/QuantumTransduction/64_v2/Data-download-2/eta=0.30",
-      "eta": "0.30",
-      "eta_source": "0.3",
-      "folder": "/home1/liaopeng/QuantumTransduction/64_v2/Data/eta=0.3_d1=2_d2=1",
-      "j2": "0",
-      "missing_optional_files": "",
-      "prefix": "/home1/liaopeng/QuantumTransduction/64_v2/Data/eta=0.3_d1=2_d2=1/j2=0_randomization=3_",
-      "randomization": "3",
-      "score": "0.6572127490510775"
+      "best_index": 4999,
+      "d1": 2,
+      "d2": 1,
+      "j2": 0,
+      "randomization": 1,
+      "score": "0.68585497989500288"
     },
-    "source_note": "Copied from Data_HPC/64_v2_2 for self-contained job 93.",
-    "source_parameter_file": "Data_HPC/64_v2_2/eta=0.30/parameters.npy",
-    "source_run_id": "64_v2_2"
+    "source_folder": "/home1/liaopeng/QuantumTransduction/94/Data/eta=0.30_d1=2_d2=1",
+    "source_prefix": "/home1/liaopeng/QuantumTransduction/94/Data/eta=0.30_d1=2_d2=1/j2=0_randomization=1_",
+    "verification_abs_error": 0.0,
+    "verification_status": "verified"
   },
   "source_j2": 0,
-  "source_metadata_differs_from_job64_defaults": false,
+  "source_metadata_differs_from_default_protocol_settings": false,
   "source_parameter_file": "QuantumTransduction/93/parameters/eta=0.30/parameters_best_feasible.npy",
-  "source_run_id": "64_v2_2",
-  "start_time": "2026-06-15T17:43:46.058572",
+  "source_run_id": 94,
+  "source_score": 0.6858549798950029,
+  "start_time": "2026-06-23T22:28:23.927623",
   "state_P_return_shape": [
     30,
     1
@@ -78,5 +76,6 @@
   "state_RS_shape": [
     60,
     1
-  ]
+  ],
+  "uses_source_protocol_settings": true
 }
