@@ -47,6 +47,7 @@ NOISY_SETUPS = [
         "nbar_p": 0.1,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
+        "tau_a": 1.0,
         "vqt_curve": {
             "run_id": VQT_A_LOSS_RUN_ID,
             "folder": "noisy_nPth=0p1_kS=0p99_kP=0p99_kA=1p00",
@@ -60,6 +61,7 @@ NOISY_SETUPS = [
         "nbar_p": 0.1,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
+        "tau_a": 0.95,
         "vqt_curve": {
             "run_id": VQT_A_LOSS_RUN_ID,
             "folder": "noisy_nPth=0p1_kS=0p99_kP=0p99_kA=0p95",
@@ -73,6 +75,7 @@ NOISY_SETUPS = [
         "nbar_p": 0.1,
         "kappa_s": 0.99,
         "kappa_p": 0.99,
+        "tau_a": 0.90,
         "vqt_curve": {
             "run_id": VQT_A_LOSS_RUN_ID,
             "folder": "noisy_nPth=0p1_kS=0p99_kP=0p99_kA=0p90",
@@ -168,13 +171,9 @@ def g(x):
     return out
 
 
-def gaussian_thermal_loss_ci(N, eta_channel, nbar_p, kappa_p):
-    T = np.clip(kappa_p * eta_channel, 0.0, 1.0)
-    denom = 1.0 - T
-    if denom <= 1e-12:
-        denom = 1e-12
-    N_B = kappa_p * (1.0 - eta_channel) * nbar_p / denom
-
+def thermal_loss_ci(N, tau, n_env):
+    T = float(tau)
+    N_B = float(n_env)
     a = N + 0.5
     b = T * N + (1.0 - T) * N_B + 0.5
     c = np.sqrt(max(T * N * (N + 1.0), 0.0))
@@ -192,43 +191,108 @@ def gaussian_thermal_loss_ci(N, eta_channel, nbar_p, kappa_p):
     return g(T * N + (1.0 - T) * N_B) - g(n_plus) - g(n_minus)
 
 
-def gaussian_thermal_loss_ci_bound(eta_channel, nbar_p, kappa_p, n_s=2, num_grid=1001):
+def thermal_loss_ci_bound(tau, n_env, n_s=2, num_grid=1001):
+    if not np.isfinite(tau) or not np.isfinite(n_env):
+        return np.nan
+    if tau < -1e-12 or tau >= 1.0 or n_env < -1e-12:
+        return np.nan
+    tau = max(float(tau), 0.0)
+    n_env = max(float(n_env), 0.0)
     n_grid = np.linspace(0.0, n_s, num_grid)
     ci_values = np.array([
-        gaussian_thermal_loss_ci(N, eta_channel, nbar_p, kappa_p)
+        thermal_loss_ci(N, tau, n_env)
         for N in n_grid
     ])
     return max(0.0, float(np.nanmax(ci_values)))
 
 
+def direct_qt_effective_params(eta, setup):
+    tau = setup["kappa_p"] * eta
+    denom = 1.0 - tau
+    if denom <= 1e-12:
+        print(f"Warning: invalid QT effective denominator at eta={eta:.2f}")
+        return np.nan, np.nan
+    n_eff = setup["kappa_p"] * (1.0 - eta) * setup["nbar_p"] / denom
+    return tau, n_eff
+
+
 def gaussian_qt_curve(setup, etas=etalist):
     values = []
     for eta in etas:
-        values.append(
-            gaussian_thermal_loss_ci_bound(
-                eta,
-                setup["nbar_p"],
-                setup["kappa_p"],
-                n_s=n_s,
-            )
-        )
+        tau, n_eff = direct_qt_effective_params(float(eta), setup)
+        values.append(thermal_loss_ci_bound(tau, n_eff, n_s=n_s))
     return np.array(values)
+
+
+def tms_ea_effective_params(eta, setup):
+    kappa_p = setup["kappa_p"]
+    kappa_a = setup["tau_a"]
+    n_th = setup["nbar_p"]
+    G = n_p + 1.0
+    denom = kappa_a * G - kappa_p * (1.0 - eta) * (G - 1.0)
+    if denom <= 0.0:
+        print(f"Warning: invalid TMS-EA anti-squeezer denominator at eta={eta:.2f}, tau_A={kappa_a:.2f}")
+        return np.nan, np.nan
+
+    G_star = kappa_a * G / denom
+    tau = kappa_p * eta * G_star
+    if tau >= 1.0:
+        print(
+            f"Warning: TMS-EA effective channel is an amplifier at "
+            f"eta={eta:.2f}, tau_A={kappa_a:.2f}, tau={tau:.6g}"
+        )
+        return np.nan, np.nan
+
+    # Limiting checks: kappa_p=kappa_a=1 and n_th=0 gives eta_EA^0;
+    # symmetric pure loss kappa_p=kappa_a=kappa<1 gives kappa * eta_EA^0.
+    n_f = (
+        G_star * kappa_p * (1.0 - eta) / G * n_th
+        + (G_star - 1.0) * (1.0 - kappa_a)
+    )
+    n_eff = n_f / max(1.0 - tau, 1e-12)
+    if n_eff < -1e-12:
+        print(
+            f"Warning: invalid negative TMS-EA n_eff at "
+            f"eta={eta:.2f}, tau_A={kappa_a:.2f}, n_eff={n_eff:.6g}"
+        )
+        return np.nan, np.nan
+    return tau, max(n_eff, 0.0)
 
 
 def gaussian_tms_ea_curve(setup, etas=etalist):
     values = []
-    r = np.arcsinh(np.sqrt(n_p))
-    G = np.cosh(r) ** 2
+    tau_values = []
+    n_eff_values = []
+    invalid_etas = []
     for eta in etas:
-        eta_EA = 1 / (1 + (1 - eta) / (eta * G))
-        values.append(
-            gaussian_thermal_loss_ci_bound(
-                eta_EA,
-                setup["nbar_p"],
-                setup["kappa_p"],
-                n_s=n_s,
-            )
+        tau, n_eff = tms_ea_effective_params(float(eta), setup)
+        if (
+            not np.isfinite(tau)
+            or not np.isfinite(n_eff)
+            or tau < 0.0
+            or tau >= 1.0
+            or n_eff < 0.0
+        ):
+            values.append(np.nan)
+            invalid_etas.append(float(eta))
+            continue
+        tau_values.append(tau)
+        n_eff_values.append(n_eff)
+        values.append(thermal_loss_ci_bound(tau, n_eff, n_s=n_s))
+
+    if invalid_etas:
+        print(
+            f"Warning: invalid TMS-EA eta values for tau_A={setup['tau_a']:.2f}: "
+            f"{_format_eta_list(invalid_etas)}"
         )
+    if tau_values:
+        print(
+            f"TMS-EA: tau_A={setup['tau_a']:.2f}, valid_eta_points={len(tau_values)}, "
+            f"tau_EA_noisy=[{min(tau_values):.6g}, {max(tau_values):.6g}], "
+            f"n_eff=[{min(n_eff_values):.6g}, {max(n_eff_values):.6g}]"
+        )
+    else:
+        print(f"Warning: no valid TMS-EA eta points for tau_A={setup['tau_a']:.2f}")
     return np.array(values)
 
 
@@ -270,9 +334,8 @@ def plot_gaussian_benchmarks(ax, setup):
     # single-output nonadaptive Gaussian benchmark only uses the retained P mode.
     qt_values = gaussian_qt_curve(setup)
     tms_values = gaussian_tms_ea_curve(setup)
-    print("TMS-EA: fixed noise baseline, tau_A=none, eta_points=19")
     ax.plot(etalist, tms_values, label="TMS-EA", marker="^", color=default_colors[2])
-    print("QT: fixed noise baseline, tau_A=none, eta_points=19")
+    print(f"QT: direct thermal-loss baseline, tau_A=none, eta_points={len(etalist)}")
     ax.plot(etalist, qt_values, label="QT", ls="--", marker="v", color=default_colors[3])
 
 
