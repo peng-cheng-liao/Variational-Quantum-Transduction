@@ -17,7 +17,7 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 DATA_ROOT = REPO_ROOT / "Data_HPC"
 os.environ.setdefault("MPLCONFIGDIR", str(SCRIPT_DIR / ".mplconfig"))
 
-DEFAULT_DELTAS = [0.01, 0.02]
+DEFAULT_DELTAS = [0.01, 0.03, 0.05]
 DEFAULT_ETAS = np.around(np.arange(0.05, 1.0, 0.05), 2).tolist()
 DEFAULT_SCHEMES = ["VQT", "GKP", "TMS-EA", "QT"]
 
@@ -384,7 +384,7 @@ def write_outputs(rows, output_dir, config):
     config_path = output_dir / "config.json"
 
     with csv_path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=OUTPUT_FIELDS)
+        writer = csv.DictWriter(handle, fieldnames=OUTPUT_FIELDS, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
