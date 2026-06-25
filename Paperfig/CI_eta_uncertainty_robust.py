@@ -14,6 +14,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(SCRIPT_DIR / ".mplconfig"))
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import rc
 
 
 JOB97_DATA_PATH = REPO_ROOT / "Data_HPC" / "97" / "robust_ci_summary.csv"
@@ -187,7 +188,7 @@ def plot_job97_delta(ax, grouped):
         scheme_rows = grouped.get((scheme, delta), [])
         eta_values = np.array([parse_float(row["eta0"]) for row in scheme_rows], dtype=float)
         ci_values = np.array([parse_float(row["ci_avg"]) for row in scheme_rows], dtype=float)
-        finite = np.isfinite(eta_values) & np.isfinite(ci_values)
+        finite = np.isfinite(eta_values) & np.isfinite(ci_values) & (eta_values < 0.95)
         if not np.any(finite):
             print(f"Warning: no finite Job 97 points for {scheme} at delta={delta}")
             continue
@@ -226,7 +227,7 @@ def plot_job98_delta_scan(ax, rows, reference):
     ax.plot(
         deltas,
         ci_minus,
-        label=r"$\eta_0-\delta$",
+        label="negative deviation",
         color=COLORS["VQT"],
         marker="o",
         linestyle="-",
@@ -234,7 +235,7 @@ def plot_job98_delta_scan(ax, rows, reference):
     ax.plot(
         deltas,
         ci_plus,
-        label=r"$\eta_0+\delta$",
+        label="positive deviation",
         color=COLORS["GKP"],
         marker="s",
         linestyle="--",
@@ -244,7 +245,7 @@ def plot_job98_delta_scan(ax, rows, reference):
     ax.scatter(
         ref_minus[:, 0],
         ref_minus[:, 1],
-        label=r"optimized at $\eta_0-\delta$",
+        label="negative optimized",
         color=COLORS["VQT"],
         marker="D",
         edgecolors="black",
@@ -254,14 +255,14 @@ def plot_job98_delta_scan(ax, rows, reference):
     ax.scatter(
         ref_plus[:, 0],
         ref_plus[:, 1],
-        label=r"optimized at $\eta_0+\delta$",
+        label="positive optimized",
         color=COLORS["GKP"],
         marker="D",
         edgecolors="black",
         linewidths=0.8,
         zorder=4,
     )
-    ax.set_title(r"$\eta_0=0.30$ fixed VQT parameters")
+    ax.set_title(r"$\eta_0 = 0.30$")
     ax.set_xlabel(r"Uncertainty $\delta$")
     ax.set_ylabel("Coherent information")
     ax.set_xlim(left=0.0)
@@ -275,6 +276,8 @@ def main():
     job98_rows = load_job98()
     job98_reference = load_job98_reference_points()
 
+    rc("text", usetex=True)
+    rc("font", family="serif")
     plt.rcParams.update(
         {
             "font.size": 15,
