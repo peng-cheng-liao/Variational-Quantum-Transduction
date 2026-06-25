@@ -1,0 +1,96 @@
+Codex prompt: update VQT thermal-noise implementation for initial thermal A mode
+
+Repository: Variational-Quantum-Transduction
+Primary file: QTorch/Transduction.py
+Related helper file if needed: QTorch/Basic.py
+
+Workflow requirement
+Before editing, synchronize with GitHub:
+- git fetch --all --prune
+- git pull --ff-only
+- confirm the working tree is clean
+After editing and validation, commit and push to GitHub. Report changed files, checks run, final git status, and pushed commit hash.
+
+Goal
+Update transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise so that the initial microwave-side state is thermal in both P and A:
+
+rho_RS^sig tensor rho_th^P(n_th^P) tensor rho_th^A(n_th^A)
+
+The current function already branches over an initial thermal P mode but still initializes A as vacuum. Replace that with a product branch over initial Fock occupations (n_P, n_A). Keep the existing order:
+
+RS preparation + PA encoder -> ideal S-P beamsplitter -> pure loss on S, P, A -> final decoder on P, A -> coherent information.
+
+Do not change the existing beamsplitter convention unless tests prove a problem. The code currently uses:
+
+theta = np.arcsin(np.sqrt(eta))
+U_BS = unitary_beam_splitter(-theta, Nt)
+
+Implementation requirements
+1. Extend the function signature by adding keyword-only argument initial_a_thermal_nbar=0.0 immediately after initial_p_thermal_nbar=0.0.
+
+2. Keep n_o, n_m, and n_a as output-loss environment occupations only. They are not initial occupations. The practical model uses pure output loss, so nonzero n_o, n_m, or n_a should still raise NotImplementedError.
+
+3. Add initial_a_thermal_nbar_value = _coherent_info_scalar_float(initial_a_thermal_nbar). Ensure both initial thermal occupations are nonnegative.
+
+4. Update the fast noiseless delegation to transduction_protocol_CoherentInfo_ECD_MM_EA so it is used only when both initial_p_thermal_nbar_value and initial_a_thermal_nbar_value are zero, all loss channels are noiseless, and return_debug is False.
+
+5. Update the state_initial_PA incompatibility check. state_initial_PA cannot be combined with initial_p_thermal_nbar > 0 or initial_a_thermal_nbar > 0. The error message should say that thermal branch mode prepares each branch from |n_P>_P |n_A>_A.
+
+6. Replace the single thermal branch list with two lists:
+- thermal_p_branches = thermal_fock_branches(initial_p_thermal_nbar, ...)
+- thermal_a_branches = thermal_fock_branches(initial_a_thermal_nbar, ...)
+Use the same dtype, device, prob_tol, and max_branches conventions as the current code.
+
+7. Loop over the product branches:
+for n_p, sqrt_pp, pp in thermal_p_branches:
+    for n_a, sqrt_pa, pa in thermal_a_branches:
+        initialize P as number_state(n_p, Nt)
+        initialize A as number_state(n_a, Nt)
+        state_PA_initial = torch.kron(state_P, state_A)
+        state_PA_n = ECD_state_generation_MM(depth, parameters_PA_0, Nt, state_initial_MM=state_PA_initial)
+
+The branch amplitude weight should be sqrt_pp * sqrt_pa, converted to the dtype/device of state_PA_n. The branch probability weight should be pp * pa, converted to the dtype/device of scalar accumulators.
+
+Use state_PA_branch = branch_weight_sqrt * state_PA_n before forming branch_RSPA0. This preserves the existing accumulation strategy where branch probabilities are encoded in the branch norm.
+
+8. Keep np_input as the average encoded energy in P after the microwave-side encoder:
+np_input += branch_weight * energy_n1n2_MM(state_PA_n, Nt)[0]
+Also add na_input for the average encoded energy in A:
+na_input += branch_weight * energy_n1n2_MM(state_PA_n, Nt)[1]
+Expose na_input in return_debug only. Do not change the normal return tuple.
+
+9. state_PA_return should be None whenever either initial thermal occupation is nonzero. Only return a pure state_PA_return when both initial thermal occupations are zero.
+
+10. Update the debug dictionary to include:
+- initial_p_thermal_nbar
+- initial_a_thermal_nbar
+- initial_p_thermal_branch_count
+- initial_a_thermal_branch_count
+- initial_thermal_product_branch_count
+- initial_p_thermal_prob_sum
+- initial_a_thermal_prob_sum
+- np_input
+- na_input
+- model = initial_P_A_thermal_branches_plus_output_pure_loss_on_S_P_A
+Keep existing useful debug entries such as rho_P, rho_RP, loss term counts, kappas, branch_count, skipped_branch_count, and traces.
+
+11. Update the docstring. It should clearly distinguish initial_p_thermal_nbar and initial_a_thermal_nbar from n_o, n_m, and n_a.
+
+Backward compatibility
+Existing calls with only initial_p_thermal_nbar should still work and match old behavior when initial_a_thermal_nbar=0. Existing noiseless calls should still delegate to the noiseless EA implementation.
+
+Validation checks
+Run:
+python -m py_compile QTorch/Transduction.py QTorch/Basic.py
+
+grep -n "initial_a_thermal_nbar\|initial_P_A_thermal" QTorch/Transduction.py
+
+Run a small local smoke test with tiny Nt and depth, parameter length 24*depth, checking:
+1. both initial thermal occupations zero works;
+2. P thermal only works;
+3. A thermal only works;
+4. both P and A thermal with return_debug=True works and reports product branch counts;
+5. nonzero initial_a_thermal_nbar plus state_initial_PA raises the intended ValueError;
+6. debug traces of rho_P and rho_RP are close to one, allowing finite-cutoff/pruning tolerance.
+
+Do not edit LaTeX files in this task. Do not rename the function. Do not change the normal return tuple unless absolutely necessary. Do not reinterpret n_a as the initial thermal occupation of A. Do not remove backward-compatible arguments.
