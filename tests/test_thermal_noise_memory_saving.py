@@ -134,11 +134,52 @@ def test_initial_thermal_branch_trace_preservation():
 
     if state_PA is not None:
         raise AssertionError("state_PA_return should be None for a mixed initial thermal P state")
-    if debug["model"] != "initial_P_thermal_branches_plus_output_pure_loss":
+    if debug["model"] != "initial_P_A_thermal_branches_plus_output_pure_loss_on_S_P_A":
         raise AssertionError("unexpected debug model label")
+    if debug["initial_a_thermal_branch_count"] != 1:
+        raise AssertionError("initial A branch count should remain vacuum for initial_a_thermal_nbar=0")
+    if debug["initial_thermal_product_branch_count"] != debug["initial_p_thermal_branch_count"]:
+        raise AssertionError("product branch count should match P branch count when A is vacuum")
 
     _assert_density_matrix("thermal rho_P", debug["rho_P"], trace_tol=1e-7)
     _assert_density_matrix("thermal rho_RP", debug["rho_RP"], trace_tol=1e-7)
+
+
+def test_initial_p_a_thermal_product_branch_count():
+    depth = 1
+    Nt = 3
+    eta = 0.25
+    parameters = _parameters(depth, seed=32)
+
+    CI, _, _, _, state_PA, debug = transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
+        eta,
+        parameters,
+        depth,
+        Nt,
+        initial_p_thermal_nbar=0.03,
+        initial_a_thermal_nbar=0.02,
+        kappa_o=0.99,
+        n_o=0.0,
+        kappa_m=0.99,
+        n_m=0.0,
+        kappa_a=0.99,
+        n_a=0.0,
+        return_debug=True,
+    )
+
+    if state_PA is not None:
+        raise AssertionError("state_PA_return should be None for mixed initial thermal PA states")
+    if not torch.isfinite(CI):
+        raise AssertionError("coherent information is not finite")
+
+    expected_count = debug["initial_p_thermal_branch_count"] * debug["initial_a_thermal_branch_count"]
+    if debug["initial_thermal_product_branch_count"] != expected_count:
+        raise AssertionError("product branch count does not match P branches times A branches")
+    if debug["initial_thermal_branch_count"] != expected_count:
+        raise AssertionError("backward-compatible branch count should report the product branch count")
+
+    _assert_density_matrix("thermal PA rho_P", debug["rho_P"], trace_tol=1e-7)
+    _assert_density_matrix("thermal PA rho_RP", debug["rho_RP"], trace_tol=1e-7)
 
 
 def test_backward_pass():
@@ -186,6 +227,7 @@ if __name__ == "__main__":
     test_noisy_debug_reduced_density_matrices()
     test_zero_initial_thermal_branch_matches_noiseless_with_debug()
     test_initial_thermal_branch_trace_preservation()
+    test_initial_p_a_thermal_product_branch_count()
     test_backward_pass()
     test_production_path_does_not_build_full_density_matrix()
     print("thermal-noise memory-saving smoke tests passed")

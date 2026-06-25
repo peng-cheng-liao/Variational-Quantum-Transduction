@@ -1469,6 +1469,7 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
         state_initial_PA=None,
         *,
         initial_p_thermal_nbar=0.0,
+        initial_a_thermal_nbar=0.0,
         kappa_o=1.0,
         n_o=0.0,
         kappa_m=1.0,
@@ -1487,25 +1488,28 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
     """
     Practical noisy extension of transduction_protocol_CoherentInfo_ECD_MM_EA.
 
-    The production path models an initial thermal mixture in the probe mode P
-    by classical Fock branches. After the ideal S-P beamsplitter transducer, it
-    applies independent pure-loss channels on S, P, and A. A loss models
-    attenuation of the encoded auxiliary mode between encoder and decoder. The
-    function avoids constructing full mixed rho_RSPA or rho_RSPAQ matrices by
-    accumulating reduced density matrices branchwise.
+    The production path models initial thermal mixtures in microwave-side modes
+    P and A by classical Fock branches. After the microwave-side encoder acts
+    on each |n_P>_P |n_A>_A branch and the ideal S-P beamsplitter transducer is
+    applied, the function applies independent pure-loss channels on S, P, and
+    A. A loss acts after the microwave-side encoder and before the final P-A
+    decoder. The function avoids constructing full mixed rho_RSPA or rho_RSPAQ
+    matrices by accumulating reduced density matrices branchwise.
 
     n_o, n_m, and n_a are retained for backward-compatible/symmetric call
-    signatures only. The practical model uses pure output loss, so nonzero
-    values raise an error; use initial_p_thermal_nbar for initial
-    microwave/probe thermal occupation.
+    signatures only as post-loss thermal-environment occupations. The practical
+    model uses pure output loss, so nonzero values remain unsupported and raise
+    an error. Use initial_p_thermal_nbar and initial_a_thermal_nbar for initial
+    microwave/probe and auxiliary thermal occupations before the encoder.
 
     env_cutoff_o, env_cutoff_m, and env_cutoff_a are accepted for compatibility
     but ignored by the pure-loss Kraus construction.
 
-    When initial_p_thermal_nbar > 0 there is no single pure state_PA to return,
-    so state_PA_return is None.
+    When initial_p_thermal_nbar > 0 or initial_a_thermal_nbar > 0, there is no
+    single pure state_PA to return, so state_PA_return is None.
     """
     initial_p_thermal_nbar_value = _coherent_info_scalar_float(initial_p_thermal_nbar)
+    initial_a_thermal_nbar_value = _coherent_info_scalar_float(initial_a_thermal_nbar)
     if (
             _coherent_info_scalar_float(n_o) != 0.0
             or _coherent_info_scalar_float(n_m) != 0.0
@@ -1514,11 +1518,13 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
         raise NotImplementedError(
             "The practical thermal-noise model uses pure loss only after the "
             "ideal transducer/encoder (n_o == n_m == n_a == 0). Use "
-            "initial_p_thermal_nbar for initial microwave/probe thermal occupation."
+            "initial_p_thermal_nbar and initial_a_thermal_nbar for initial "
+            "microwave/probe and auxiliary thermal occupations."
         )
 
     if (
             initial_p_thermal_nbar_value == 0.0
+            and initial_a_thermal_nbar_value == 0.0
             and is_noiseless_thermal_loss(kappa_o, n_o)
             and is_noiseless_thermal_loss(kappa_m, n_m)
             and is_noiseless_thermal_loss(kappa_a, n_a)
@@ -1530,10 +1536,14 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
             state_initial_PA=state_initial_PA,
         )
 
-    if initial_p_thermal_nbar_value > 0.0 and state_initial_PA is not None:
+    if (
+            (initial_p_thermal_nbar_value > 0.0 or initial_a_thermal_nbar_value > 0.0)
+            and state_initial_PA is not None
+    ):
         raise ValueError(
-            "state_initial_PA cannot be combined with initial_p_thermal_nbar > 0; "
-            "the thermal branch model prepares each branch from |n>_P |0>_A."
+            "state_initial_PA cannot be combined with initial_p_thermal_nbar > 0 "
+            "or initial_a_thermal_nbar > 0 because the thermal branch model "
+            "prepares each branch from |n_P>_P |n_A>_A."
         )
 
     # 0->R, 1->S, 2->P, 3->A, 4->Q
@@ -1563,7 +1573,7 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
     dims_RSPA = [Nt, Nt, Nt, Nt]
     U_BS = unitary_beam_splitter(-theta, Nt)
 
-    thermal_branches = thermal_fock_branches(
+    thermal_p_branches = thermal_fock_branches(
         initial_p_thermal_nbar,
         Nt,
         dtype=state_RS.dtype,
@@ -1571,7 +1581,17 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
         prob_tol=initial_thermal_prob_tol,
         max_branches=max_initial_thermal_branches,
     )
-    initial_thermal_prob_sum = torch.stack([prob for _, _, prob in thermal_branches]).sum()
+    thermal_a_branches = thermal_fock_branches(
+        initial_a_thermal_nbar,
+        Nt,
+        dtype=state_RS.dtype,
+        device=state_RS.device,
+        prob_tol=initial_thermal_prob_tol,
+        max_branches=max_initial_thermal_branches,
+    )
+    initial_p_thermal_prob_sum = torch.stack([prob for _, _, prob in thermal_p_branches]).sum()
+    initial_a_thermal_prob_sum = torch.stack([prob for _, _, prob in thermal_a_branches]).sum()
+    initial_thermal_prob_sum = initial_p_thermal_prob_sum * initial_a_thermal_prob_sum
 
     kraus_s = pure_loss_kraus_operators(
         kappa_o,
@@ -1605,74 +1625,86 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
     rho_P = torch.zeros((Nt, Nt), dtype=state_RS.dtype, device=state_RS.device)
     rho_RP = torch.zeros((Nt * Nt, Nt * Nt), dtype=state_RS.dtype, device=state_RS.device)
     np_input = torch.zeros((), dtype=state_RS.real.dtype, device=state_RS.device)
+    na_input = torch.zeros((), dtype=state_RS.real.dtype, device=state_RS.device)
     state_PA_return = None
     branch_count = 0
     skipped_branch_count = 0
 
-    for thermal_n, sqrt_pn, pn in thermal_branches:
-        if initial_p_thermal_nbar_value == 0.0 and state_initial_PA is not None:
-            state_PA_n = ECD_state_generation_MM(
-                depth,
-                parameters_PA_0,
-                Nt,
-                state_initial_MM=state_initial_PA,
-            )
-        else:
-            state_P = number_state(thermal_n, Nt).to(dtype=state_RS.dtype, device=state_RS.device)
-            state_A = number_state(0, Nt).to(dtype=state_RS.dtype, device=state_RS.device)
-            state_PA_initial_n = torch.kron(state_P, state_A)
-            state_PA_n = ECD_state_generation_MM(
-                depth,
-                parameters_PA_0,
-                Nt,
-                state_initial_MM=state_PA_initial_n,
-            )
-
-        if initial_p_thermal_nbar_value == 0.0:
-            state_PA_return = state_PA_n
-
-        np_input = np_input + pn.to(dtype=np_input.dtype, device=np_input.device) * energy_n1n2_MM(state_PA_n, Nt)[0]
-        state_PA_branch = sqrt_pn.to(dtype=state_PA_n.dtype, device=state_PA_n.device) * state_PA_n
-        branch_RSPA0 = torch.kron(state_RS.reshape(-1, 1), state_PA_branch.reshape(-1, 1))
-        branch_RSPA0 = branch_RSPA0.reshape(Nt, Nt * Nt, Nt)
-
-        branch_RSPA0 = torch.einsum('ij,kjd->kid', U_BS, branch_RSPA0).reshape(-1, 1)
-
-        for K_s in kraus_s:
-            branch_after_s = apply_single_mode_operator_to_state(branch_RSPA0, K_s, target_mode=1, dims=dims_RSPA)
-            for K_p in kraus_p:
-                branch_after_sp = apply_single_mode_operator_to_state(
-                    branch_after_s, K_p, target_mode=2, dims=dims_RSPA
+    for thermal_p_n, sqrt_pp, pp in thermal_p_branches:
+        for thermal_a_n, sqrt_pa, pa in thermal_a_branches:
+            if (
+                    initial_p_thermal_nbar_value == 0.0
+                    and initial_a_thermal_nbar_value == 0.0
+                    and state_initial_PA is not None
+            ):
+                state_PA_n = ECD_state_generation_MM(
+                    depth,
+                    parameters_PA_0,
+                    Nt,
+                    state_initial_MM=state_initial_PA,
                 )
-                for K_a in kraus_a:
-                    branch_RSPA = apply_single_mode_operator_to_state(
-                        branch_after_sp, K_a, target_mode=3, dims=dims_RSPA
-                    )
-                    branch_norm_sq = torch.sum(torch.abs(branch_RSPA) ** 2).real
-                    if kraus_prob_tol is not None and float(branch_norm_sq.detach().cpu()) < kraus_prob_tol:
-                        skipped_branch_count += 1
-                        continue
+            else:
+                state_P = number_state(thermal_p_n, Nt).to(dtype=state_RS.dtype, device=state_RS.device)
+                state_A = number_state(thermal_a_n, Nt).to(dtype=state_RS.dtype, device=state_RS.device)
+                state_PA_initial_n = torch.kron(state_P, state_A)
+                state_PA_n = ECD_state_generation_MM(
+                    depth,
+                    parameters_PA_0,
+                    Nt,
+                    state_initial_MM=state_PA_initial_n,
+                )
 
-                    branch_RSPAQ = torch.kron(branch_RSPA.reshape(-1, 1), state_Q)
-                    branch_RSPAQ = _apply_CoherentInfo_ECD_MM_EA_decoder_state(
-                        branch_RSPAQ,
-                        alphas_p_1,
-                        alphas_a_1,
-                        betas_p_1,
-                        betas_a_1,
-                        depth,
-                        Nt,
-                    )
+            if initial_p_thermal_nbar_value == 0.0 and initial_a_thermal_nbar_value == 0.0:
+                state_PA_return = state_PA_n
 
-                    rho_P_i, rho_RP_i = accumulate_reduced_density_from_branch(
-                        branch_RSPAQ,
-                        dims=dims_RSPAQ,
-                        keep_P=[2],
-                        keep_RP=[0, 2],
+            branch_prob = pp * pa
+            branch_sqrt_prob = sqrt_pp * sqrt_pa
+            branch_prob = branch_prob.to(dtype=np_input.dtype, device=np_input.device)
+            encoded_p_energy, encoded_a_energy = energy_n1n2_MM(state_PA_n, Nt)
+            np_input = np_input + branch_prob * encoded_p_energy
+            na_input = na_input + branch_prob * encoded_a_energy
+
+            state_PA_branch = branch_sqrt_prob.to(dtype=state_PA_n.dtype, device=state_PA_n.device) * state_PA_n
+            branch_RSPA0 = torch.kron(state_RS.reshape(-1, 1), state_PA_branch.reshape(-1, 1))
+            branch_RSPA0 = branch_RSPA0.reshape(Nt, Nt * Nt, Nt)
+
+            branch_RSPA0 = torch.einsum('ij,kjd->kid', U_BS, branch_RSPA0).reshape(-1, 1)
+
+            for K_s in kraus_s:
+                branch_after_s = apply_single_mode_operator_to_state(branch_RSPA0, K_s, target_mode=1, dims=dims_RSPA)
+                for K_p in kraus_p:
+                    branch_after_sp = apply_single_mode_operator_to_state(
+                        branch_after_s, K_p, target_mode=2, dims=dims_RSPA
                     )
-                    rho_P = rho_P + rho_P_i
-                    rho_RP = rho_RP + rho_RP_i
-                    branch_count += 1
+                    for K_a in kraus_a:
+                        branch_RSPA = apply_single_mode_operator_to_state(
+                            branch_after_sp, K_a, target_mode=3, dims=dims_RSPA
+                        )
+                        branch_norm_sq = torch.sum(torch.abs(branch_RSPA) ** 2).real
+                        if kraus_prob_tol is not None and float(branch_norm_sq.detach().cpu()) < kraus_prob_tol:
+                            skipped_branch_count += 1
+                            continue
+
+                        branch_RSPAQ = torch.kron(branch_RSPA.reshape(-1, 1), state_Q)
+                        branch_RSPAQ = _apply_CoherentInfo_ECD_MM_EA_decoder_state(
+                            branch_RSPAQ,
+                            alphas_p_1,
+                            alphas_a_1,
+                            betas_p_1,
+                            betas_a_1,
+                            depth,
+                            Nt,
+                        )
+
+                        rho_P_i, rho_RP_i = accumulate_reduced_density_from_branch(
+                            branch_RSPAQ,
+                            dims=dims_RSPAQ,
+                            keep_P=[2],
+                            keep_RP=[0, 2],
+                        )
+                        rho_P = rho_P + rho_P_i
+                        rho_RP = rho_RP + rho_RP_i
+                        branch_count += 1
 
     rho_P = 0.5 * (rho_P + rho_P.conj().T)
     rho_RP = 0.5 * (rho_RP + rho_RP.conj().T)
@@ -1684,8 +1716,15 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
             "rho_P": rho_P,
             "rho_RP": rho_RP,
             "initial_p_thermal_nbar": initial_p_thermal_nbar,
-            "initial_thermal_branch_count": len(thermal_branches),
+            "initial_a_thermal_nbar": initial_a_thermal_nbar,
+            "initial_p_thermal_branch_count": len(thermal_p_branches),
+            "initial_a_thermal_branch_count": len(thermal_a_branches),
+            "initial_thermal_product_branch_count": len(thermal_p_branches) * len(thermal_a_branches),
+            "initial_p_thermal_prob_sum": initial_p_thermal_prob_sum,
+            "initial_a_thermal_prob_sum": initial_a_thermal_prob_sum,
+            "initial_thermal_branch_count": len(thermal_p_branches) * len(thermal_a_branches),
             "initial_thermal_prob_sum": initial_thermal_prob_sum,
+            "na_input": na_input,
             "pure_loss_terms_s": len(kraus_s),
             "pure_loss_terms_p": len(kraus_p),
             "pure_loss_terms_a": len(kraus_a),
@@ -1702,7 +1741,7 @@ def transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise(
             "skipped_branch_count": skipped_branch_count,
             "trace_rho_P": torch.trace(rho_P),
             "trace_rho_RP": torch.trace(rho_RP),
-            "model": "initial_P_thermal_branches_plus_output_pure_loss_on_S_P_A",
+            "model": "initial_P_A_thermal_branches_plus_output_pure_loss_on_S_P_A",
             "env_cutoff_o_ignored": env_cutoff_o,
             "env_cutoff_m_ignored": env_cutoff_m,
             "env_cutoff_a_ignored": env_cutoff_a,
