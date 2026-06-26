@@ -143,34 +143,18 @@ def plot_depth_scan(points):
     ax.plot(
         depths,
         ci_values,
-        label="VQT-EA",
         color=COLOR,
         marker="o",
         linestyle="-",
         zorder=3,
     )
 
-    ref_mask = depths == REFERENCE_DEPTH
-    if np.any(ref_mask):
-        ax.plot(
-            depths[ref_mask],
-            ci_values[ref_mask],
-            label="Job 84 reference",
-            color=COLOR,
-            marker="D",
-            markeredgecolor="black",
-            markeredgewidth=0.8,
-            linestyle="None",
-            zorder=4,
-        )
-
     ax.set_xlabel("Depth")
-    ax.set_ylabel("Best feasible coherent information")
+    ax.set_ylabel("Coherent Information")
     ax.set_xticks(depths.astype(int))
     ax.set_xlim(left=depths.min() - 0.75, right=depths.max() + 0.75)
     ax.tick_params(axis="both", which="major")
     ax.grid(True, alpha=0.25, linewidth=0.7)
-    ax.legend(loc="lower right", frameon=False)
     fig.tight_layout()
     return fig
 
