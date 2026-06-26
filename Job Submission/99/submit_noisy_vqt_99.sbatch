@@ -33,14 +33,14 @@ export MPLCONFIGDIR="${JOB_DIR}/.mplconfig"
 mkdir -p "${MPLCONFIGDIR}"
 
 # Explicit task map:
-#   case 0: eta scan, n_P^th=n_A^th=0.1, tau_S=tau_P=tau_A=0.99, 19 eta points
-#   case 1: eta scan, n_P^th=n_A^th=0.01, tau_S=tau_P=tau_A=0.99, 19 eta points
-#   case 2: eta scan, n_P^th=n_A^th=0.001, tau_S=tau_P=tau_A=0.99, 19 eta points
+#   case 0: eta scan, n_P^th=n_A^th=0.03, tau_S=tau_P=tau_A=0.99, 19 eta points
+#   case 1: eta scan, n_P^th=n_A^th=0.05, tau_S=tau_P=tau_A=0.99, 19 eta points
+#   case 2: eta scan, n_P^th=n_A^th=0.07, tau_S=tau_P=tau_A=0.99, 19 eta points
 CASE_LENGTHS=(19 19 19)
 CASE_NAMES=(
-  nthP_0p1_nthA_0p1_tauAll_0p99
-  nthP_0p01_nthA_0p01_tauAll_0p99
-  nthP_0p001_nthA_0p001_tauAll_0p99
+  nthP_0p03_nthA_0p03_tauAll_0p99
+  nthP_0p05_nthA_0p05_tauAll_0p99
+  nthP_0p07_nthA_0p07_tauAll_0p99
 )
 
 TASK_ID="${SLURM_ARRAY_TASK_ID}"

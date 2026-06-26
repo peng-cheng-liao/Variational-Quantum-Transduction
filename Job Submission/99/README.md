@@ -38,12 +38,12 @@ Eta grid:
 eta = 0.05, 0.10, ..., 0.95
 ```
 
-Three initial thermal settings are evaluated:
+Three initial thermal settings are evaluated in the active run:
 
 ```text
-n_P^th = n_A^th = 0.1
-n_P^th = n_A^th = 0.01
-n_P^th = n_A^th = 0.001
+n_P^th = n_A^th = 0.03
+n_P^th = n_A^th = 0.05
+n_P^th = n_A^th = 0.07
 ```
 
 Outputs are written under the job-local data folder:
@@ -58,12 +58,15 @@ On HPC this is:
 /home1/liaopeng/QuantumTransduction/99/Data
 ```
 
+Existing data in `Data` from previous Job 99 scans are intentionally
+preserved and should not be deleted. New runs use distinct case subfolders.
+
 Case subfolders:
 
 ```text
-Data/nthP_0p1_nthA_0p1_tauAll_0p99/eta=0.05/
-Data/nthP_0p01_nthA_0p01_tauAll_0p99/eta=0.05/
-Data/nthP_0p001_nthA_0p001_tauAll_0p99/eta=0.05/
+Data/nthP_0p03_nthA_0p03_tauAll_0p99/eta=0.05/
+Data/nthP_0p05_nthA_0p05_tauAll_0p99/eta=0.05/
+Data/nthP_0p07_nthA_0p07_tauAll_0p99/eta=0.05/
 ```
 
 Each eta folder contains:
