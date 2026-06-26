@@ -12,7 +12,9 @@
 #SBATCH --array=0-79
 
 set -euo pipefail
-cd "$SLURM_SUBMIT_DIR"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
 
 module purge
 module load legacy/CentOS7
@@ -26,7 +28,7 @@ export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 export MPLBACKEND=Agg
-export MPLCONFIGDIR="${SLURM_SUBMIT_DIR}/.mplconfig"
+export MPLCONFIGDIR="${SCRIPT_DIR}/.mplconfig"
 mkdir -p "${MPLCONFIGDIR}"
 
 # Explicit task map:
@@ -64,6 +66,7 @@ fi
 echo "Running noisy VQT run 99:"
 echo "  SLURM_ARRAY_TASK_ID = ${SLURM_ARRAY_TASK_ID}"
 echo "  SLURM_CPUS_PER_TASK = ${SLURM_CPUS_PER_TASK}"
+echo "  script_dir          = ${SCRIPT_DIR}"
 echo "  case                = ${CASE_NAMES[$CASE_IDX]}"
 echo "  case_index          = ${CASE_IDX}"
 echo "  scan_index          = ${SCAN_IDX}"

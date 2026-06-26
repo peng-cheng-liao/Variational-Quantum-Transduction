@@ -84,6 +84,19 @@ Submit the full 80-task Slurm array:
 sbatch submit_noisy_vqt_99.sbatch
 ```
 
+The submission script resolves its own directory, so it can also be submitted
+from the repository root:
+
+```bash
+sbatch "Job Submission/99/submit_noisy_vqt_99.sbatch"
+```
+
+Slurm stdout/stderr files are written under:
+
+```text
+Job Submission/99/logs/
+```
+
 Summarize outputs:
 
 ```bash

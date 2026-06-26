@@ -5,5 +5,8 @@ Paperfig/.mplconfig/tex.cache/
 .mplconfig/
 Job Submission/*/.mplconfig/
 Job Submission/*/logs/
+!Job Submission/99/logs/
+Job Submission/99/logs/*
+!Job Submission/99/logs/.gitkeep
 Job Submission/*/runs/
 Job Submission/*/training_parameters/
