@@ -1,0 +1,32 @@
+{
+  "selection_summary": {
+    "source_run_id": "96",
+    "row_type": "job96_result",
+    "depth": "18",
+    "eta": "0.30",
+    "Nt": "30",
+    "output_folder": "eta=0.30_depth=18_Nt=30",
+    "source_depth_folder": "eta=0.30_depth=18_Nt=30",
+    "best_seed": "seed_78",
+    "best_feasible_ci": "0.99869372949751067",
+    "valid_seed_count": "200",
+    "tie_count": "1",
+    "score_source": "/scratch1/liaopeng/QuantumTransduction/96/Data/runs/eta=0.30_depth=18_Nt=30/seed_78/best_feasible_ci.txt",
+    "parameter_source": "/scratch1/liaopeng/QuantumTransduction/96/Data/training_parameters/eta=0.30_depth=18_Nt=30/seed_78/parameters_best_feasible.npy",
+    "state_rs_source": "/scratch1/liaopeng/QuantumTransduction/96/Data/training_parameters/eta=0.30_depth=18_Nt=30/seed_78/state_RS_best_feasible.npy",
+    "state_pa_source": "/scratch1/liaopeng/QuantumTransduction/96/Data/training_parameters/eta=0.30_depth=18_Nt=30/seed_78/state_PA_best_feasible.npy",
+    "status": "ok"
+  },
+  "job": "96",
+  "objective": "coherent_information_nonadaptive_VQT_EA_ns_np_2",
+  "eta": "0.30",
+  "Nt": 30,
+  "depth": 18,
+  "feasibility_rule": "ns <= 2 + 0.01 and np <= 2 + 0.01",
+  "scratch_score_source": "/scratch1/liaopeng/QuantumTransduction/96/Data/runs/eta=0.30_depth=18_Nt=30/seed_78/best_feasible_ci.txt",
+  "scratch_parameter_source": "/scratch1/liaopeng/QuantumTransduction/96/Data/training_parameters/eta=0.30_depth=18_Nt=30/seed_78/parameters_best_feasible.npy",
+  "copied_optional_files": [
+    "state_RS_best_feasible.npy",
+    "state_PA_best_feasible.npy"
+  ]
+}

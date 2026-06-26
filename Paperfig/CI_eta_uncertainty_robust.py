@@ -230,7 +230,7 @@ def plot_job98_delta_scan(ax, rows, reference):
         label="negative deviation",
         color=COLORS["VQT"],
         marker="o",
-        linestyle="-",
+        linestyle="--",
     )
     ax.plot(
         deltas,
@@ -240,26 +240,28 @@ def plot_job98_delta_scan(ax, rows, reference):
         marker="s",
         linestyle="--",
     )
-    ref_minus = np.array(reference["minus"], dtype=float)
-    ref_plus = np.array(reference["plus"], dtype=float)
-    ax.scatter(
+    ref_minus = np.array([(0.0, reference["nominal"])] + reference["minus"], dtype=float)
+    ref_plus = np.array([(0.0, reference["nominal"])] + reference["plus"], dtype=float)
+    ax.plot(
         ref_minus[:, 0],
         ref_minus[:, 1],
         label="negative optimized",
         color=COLORS["VQT"],
         marker="D",
-        edgecolors="black",
-        linewidths=0.8,
+        markeredgecolor="black",
+        markeredgewidth=0.8,
+        linestyle="-",
         zorder=4,
     )
-    ax.scatter(
+    ax.plot(
         ref_plus[:, 0],
         ref_plus[:, 1],
         label="positive optimized",
         color=COLORS["GKP"],
         marker="D",
-        edgecolors="black",
-        linewidths=0.8,
+        markeredgecolor="black",
+        markeredgewidth=0.8,
+        linestyle="-",
         zorder=4,
     )
     ax.set_title(r"$\eta_0 = 0.30$")
