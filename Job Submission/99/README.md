@@ -1,7 +1,8 @@
-# Job 99: Initial-P/A thermal noisy VQT evaluation
+# Job 99: Initial-P/A thermal noisy VQT eta scans
 
-Job 99 mirrors the self-contained Job 95 workflow with local `QTorch`, local
-run-84 parameter files, a Slurm array script, and text/config outputs. It uses:
+Job 99 is a self-contained HPC job for noisy VQT coherent-information
+evaluation with local `QTorch`, local run-84 parameter files, a Slurm array
+script, and local text/config outputs. It uses:
 
 ```text
 transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise
@@ -22,39 +23,60 @@ n_o = n_m = n_a = 0.0
 
 Do not use `n_a` for the initial thermal state of A.
 
-## Cases
+## Scan
 
-Eta grid for cases 1 and 2:
+All cases use the same loss setting:
+
+```text
+tau_s = tau_p = tau_A = 0.99
+kappa_o = kappa_m = kappa_a = 0.99
+```
+
+Eta grid:
 
 ```text
 eta = 0.05, 0.10, ..., 0.95
 ```
 
-Tau-A grid for cases 3 and 4:
+Three initial thermal settings are evaluated:
 
 ```text
-tau_A = 1.00, 0.99, 0.98, ..., 0.80
+n_P^th = n_A^th = 0.1
+n_P^th = n_A^th = 0.01
+n_P^th = n_A^th = 0.001
 ```
 
-Four cases are written under independent subfolders in `Data_HPC/99`:
+Outputs are written under the job-local data folder:
 
 ```text
-case1_eta_scan_nthP_0_nthA_0_tauA_0p90
-case2_eta_scan_nthP_0p1_nthA_0p1_tauA_0p90
-case3_tauA_scan_eta_0p60_nthP_0_nthA_0
-case4_tauA_scan_eta_0p60_nthP_0p1_nthA_0p1
+Job Submission/99/Data
 ```
 
-Fixed settings:
+On HPC this is:
 
 ```text
-kappa_S = kappa_P = 0.99
-n_o = n_m = n_a = 0.0
+/home1/liaopeng/QuantumTransduction/99/Data
+```
+
+Case subfolders:
+
+```text
+Data/nthP_0p1_nthA_0p1_tauAll_0p99/eta=0.05/
+Data/nthP_0p01_nthA_0p01_tauAll_0p99/eta=0.05/
+Data/nthP_0p001_nthA_0p001_tauAll_0p99/eta=0.05/
+```
+
+Each eta folder contains:
+
+```text
+best_feasible_ci.txt
+noise_config.json
+source_parameter_file.txt
 ```
 
 ## Commands
 
-Run from this folder:
+Run local checks from this folder:
 
 ```bash
 cd "Job Submission/99"
@@ -69,32 +91,13 @@ python calculate_noisy_vqt_99.py --list-cases
 Dry run for case 0 and scan index 0:
 
 ```bash
-python calculate_noisy_vqt_99.py --dry-run --case-index 0 --scan-index 0
+python calculate_noisy_vqt_99.py --dry-run --case-index 0 --scan-index 0 --output-root Data
 ```
 
 One recompute task:
 
 ```bash
-python calculate_noisy_vqt_99.py --case-index 0 --scan-index 0 --recompute
-```
-
-Submit the full 80-task Slurm array:
-
-```bash
-sbatch submit_noisy_vqt_99.sbatch
-```
-
-The submission script resolves its own directory, so it can also be submitted
-from the repository root:
-
-```bash
-sbatch "Job Submission/99/submit_noisy_vqt_99.sbatch"
-```
-
-Slurm stdout/stderr files are written under:
-
-```text
-Job Submission/99/logs/
+python calculate_noisy_vqt_99.py --case-index 0 --scan-index 0 --output-root Data --recompute
 ```
 
 Summarize outputs:
@@ -103,13 +106,42 @@ Summarize outputs:
 python process_noisy_vqt_99.py
 ```
 
-## Runtime Notes
+## HPC Submission
 
-The full scan has 80 tasks:
+The Slurm script is intended for this HPC deployment path:
 
 ```text
-19 eta points + 19 eta points + 21 tau_A points + 21 tau_A points
+/home1/liaopeng/QuantumTransduction/99
 ```
 
-The Slurm array maps each `SLURM_ARRAY_TASK_ID` to an explicit
-`case_index` and `scan_index`, then calls `calculate_noisy_vqt_99.py`.
+Submit from HPC with:
+
+```bash
+cd /home1/liaopeng/QuantumTransduction/99
+mkdir -p logs Data
+sbatch submit_noisy_vqt_99.sbatch
+```
+
+The script uses absolute HPC paths for `--chdir`, stdout, stderr, and
+`--output-root`, so raw outputs are saved to:
+
+```text
+/home1/liaopeng/QuantumTransduction/99/Data
+```
+
+Slurm stdout/stderr files are written to:
+
+```text
+/home1/liaopeng/QuantumTransduction/99/logs
+```
+
+## Runtime Notes
+
+The full scan has 57 tasks:
+
+```text
+3 thermal settings x 19 eta points
+```
+
+The Slurm array maps each `SLURM_ARRAY_TASK_ID` to an explicit `case_index`
+and `scan_index`, then calls `calculate_noisy_vqt_99.py`.

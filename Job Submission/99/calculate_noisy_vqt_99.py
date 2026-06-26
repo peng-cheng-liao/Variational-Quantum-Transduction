@@ -28,59 +28,46 @@ SOURCE_RUN_ID = 84
 REFERENCE_RUN_ID = 92
 RUN_ID = 99
 DEFAULT_ETAS = np.around(np.arange(0.05, 1.0, 0.05), 2)
-TAU_A_VALUES = [round(1.00 - 0.01 * idx, 2) for idx in range(21)]
-DEFAULT_OUTPUT_ROOT = repo_dir / "Data_HPC" / str(RUN_ID)
+DEFAULT_OUTPUT_ROOT = job_dir / "Data"
 FUNCTION_NAME = "transduction_protocol_CoherentInfo_ECD_MM_EA_thermal_noise"
 MODEL_NAME = "initial_P_and_A_thermal_branches_plus_output_pure_loss_on_S_P_A"
 
 CASES = [
     {
-        "case_id": "case1_eta_scan_nthP_0_nthA_0_tauA_0p90",
+        "case_id": "nthP_0p1_nthA_0p1_tauAll_0p99",
         "scan_type": "eta",
-        "output_subdir": "case1_eta_scan_nthP_0_nthA_0_tauA_0p90",
-        "description": "eta scan, no initial thermal photons, tau_A=0.90",
-        "initial_p_thermal_nbar": 0.0,
-        "initial_a_thermal_nbar": 0.0,
-        "kappa_o": 0.99,
-        "kappa_m": 0.99,
-        "kappa_a": 0.90,
-        "eta_values": DEFAULT_ETAS,
-    },
-    {
-        "case_id": "case2_eta_scan_nthP_0p1_nthA_0p1_tauA_0p90",
-        "scan_type": "eta",
-        "output_subdir": "case2_eta_scan_nthP_0p1_nthA_0p1_tauA_0p90",
-        "description": "eta scan, n_P^th=n_A^th=0.1, tau_A=0.90",
+        "output_subdir": "nthP_0p1_nthA_0p1_tauAll_0p99",
+        "description": "eta scan, n_P^th=n_A^th=0.1, tau_S=tau_P=tau_A=0.99",
         "initial_p_thermal_nbar": 0.1,
         "initial_a_thermal_nbar": 0.1,
         "kappa_o": 0.99,
         "kappa_m": 0.99,
-        "kappa_a": 0.90,
+        "kappa_a": 0.99,
         "eta_values": DEFAULT_ETAS,
     },
     {
-        "case_id": "case3_tauA_scan_eta_0p60_nthP_0_nthA_0",
-        "scan_type": "tau_a",
-        "output_subdir": "case3_tauA_scan_eta_0p60_nthP_0_nthA_0",
-        "description": "tau_A scan, eta=0.60, no initial thermal photons",
-        "initial_p_thermal_nbar": 0.0,
-        "initial_a_thermal_nbar": 0.0,
+        "case_id": "nthP_0p01_nthA_0p01_tauAll_0p99",
+        "scan_type": "eta",
+        "output_subdir": "nthP_0p01_nthA_0p01_tauAll_0p99",
+        "description": "eta scan, n_P^th=n_A^th=0.01, tau_S=tau_P=tau_A=0.99",
+        "initial_p_thermal_nbar": 0.01,
+        "initial_a_thermal_nbar": 0.01,
         "kappa_o": 0.99,
         "kappa_m": 0.99,
-        "eta": 0.60,
-        "kappa_a_values": TAU_A_VALUES,
+        "kappa_a": 0.99,
+        "eta_values": DEFAULT_ETAS,
     },
     {
-        "case_id": "case4_tauA_scan_eta_0p60_nthP_0p1_nthA_0p1",
-        "scan_type": "tau_a",
-        "output_subdir": "case4_tauA_scan_eta_0p60_nthP_0p1_nthA_0p1",
-        "description": "tau_A scan, eta=0.60, n_P^th=n_A^th=0.1",
-        "initial_p_thermal_nbar": 0.1,
-        "initial_a_thermal_nbar": 0.1,
+        "case_id": "nthP_0p001_nthA_0p001_tauAll_0p99",
+        "scan_type": "eta",
+        "output_subdir": "nthP_0p001_nthA_0p001_tauAll_0p99",
+        "description": "eta scan, n_P^th=n_A^th=0.001, tau_S=tau_P=tau_A=0.99",
+        "initial_p_thermal_nbar": 0.001,
+        "initial_a_thermal_nbar": 0.001,
         "kappa_o": 0.99,
         "kappa_m": 0.99,
-        "eta": 0.60,
-        "kappa_a_values": TAU_A_VALUES,
+        "kappa_a": 0.99,
+        "eta_values": DEFAULT_ETAS,
     },
 ]
 CASE_BY_ID = {case["case_id"]: case for case in CASES}
@@ -88,10 +75,6 @@ CASE_BY_ID = {case["case_id"]: case for case in CASES}
 
 def eta_folder(eta):
     return f"eta={float(eta):.2f}"
-
-
-def tau_a_folder(kappa_a):
-    return f"tauA={float(kappa_a):.2f}"
 
 
 def relative_to_repo(path):
@@ -108,23 +91,15 @@ def scalar_float(value):
 
 
 def scan_values_for_case(case):
-    if case["scan_type"] == "eta":
-        return np.array(case["eta_values"], dtype=float)
-    if case["scan_type"] == "tau_a":
-        return np.array(case["kappa_a_values"], dtype=float)
-    raise ValueError(f"Unknown scan type: {case['scan_type']}")
+    return np.array(case["eta_values"], dtype=float)
 
 
 def scan_folder(case, scan_value):
-    if case["scan_type"] == "eta":
-        return eta_folder(scan_value)
-    return tau_a_folder(scan_value)
+    return eta_folder(scan_value)
 
 
 def point_eta_and_kappa_a(case, scan_value):
-    if case["scan_type"] == "eta":
-        return float(scan_value), float(case["kappa_a"])
-    return float(case["eta"]), float(scan_value)
+    return float(scan_value), float(case["kappa_a"])
 
 
 def load_thermal_noise_protocol():
@@ -326,6 +301,7 @@ def calculate_scan_point(args, case, scan_value):
         "kappa_o": case["kappa_o"],
         "kappa_m": case["kappa_m"],
         "kappa_a": kappa_a,
+        "CI": ci_value,
         "n_o": 0.0,
         "n_m": 0.0,
         "n_a": 0.0,
@@ -397,11 +373,10 @@ def select_scan_values(args, case):
     provided = [
         args.scan_index is not None,
         args.eta is not None,
-        args.tau_a is not None,
         args.all_scan_points,
     ]
     if sum(provided) > 1:
-        raise SystemExit("Use only one of --scan-index, --eta, --tau-a, or --all-scan-points.")
+        raise SystemExit("Use only one of --scan-index, --eta, or --all-scan-points.")
 
     values = scan_values_for_case(case)
     if args.scan_index is not None:
@@ -412,14 +387,7 @@ def select_scan_values(args, case):
         return np.array([values[args.scan_index]], dtype=float)
 
     if args.eta is not None:
-        if case["scan_type"] != "eta":
-            raise SystemExit("--eta can only be used with eta-scan cases.")
         return np.array([round(args.eta, 2)], dtype=float)
-
-    if args.tau_a is not None:
-        if case["scan_type"] != "tau_a":
-            raise SystemExit("--tau-a can only be used with tau-A-scan cases.")
-        return np.array([round(args.tau_a, 2)], dtype=float)
 
     return values
 
@@ -465,7 +433,6 @@ def parse_args():
     parser.add_argument("--case-index", type=int)
     parser.add_argument("--scan-index", type=int)
     parser.add_argument("--eta", type=float)
-    parser.add_argument("--tau-a", type=float)
     parser.add_argument("--all-scan-points", action="store_true")
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--kraus-prob-tol", type=float, default=1e-12)
@@ -491,6 +458,7 @@ def parse_args():
                 f"points={len(values)} initial_p_thermal_nbar={case['initial_p_thermal_nbar']} "
                 f"initial_a_thermal_nbar={case['initial_a_thermal_nbar']} "
                 f"kappa_o={case['kappa_o']} kappa_m={case['kappa_m']} "
+                f"kappa_a={case['kappa_a']} "
                 f"n_o=0.0 n_m=0.0 n_a=0.0 output_subdir={case['output_subdir']}",
                 flush=True,
             )
@@ -508,7 +476,7 @@ def parse_args():
         torch.set_num_interop_threads(1)
 
     if not args.output_root.is_absolute():
-        args.output_root = (repo_dir / args.output_root).resolve()
+        args.output_root = (job_dir / args.output_root).resolve()
 
     return args
 
@@ -532,7 +500,7 @@ def main():
         f"Noise parameters: initial_p_thermal_nbar={case['initial_p_thermal_nbar']} "
         f"initial_a_thermal_nbar={case['initial_a_thermal_nbar']} "
         f"kappa_o={case['kappa_o']} kappa_m={case['kappa_m']} "
-        f"n_o=0.0 n_m=0.0 n_a=0.0",
+        f"kappa_a={case['kappa_a']} n_o=0.0 n_m=0.0 n_a=0.0",
         flush=True,
     )
     print(f"Output directory: {relative_to_repo(case_out_dir)}", flush=True)

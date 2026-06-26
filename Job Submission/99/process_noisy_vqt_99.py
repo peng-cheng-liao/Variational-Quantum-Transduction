@@ -7,7 +7,7 @@ from pathlib import Path
 
 job_dir = Path(__file__).resolve().parent
 repo_dir = job_dir.parents[1]
-DEFAULT_INPUT_ROOT = repo_dir / "Data_HPC" / "99"
+DEFAULT_INPUT_ROOT = job_dir / "Data"
 DEFAULT_SUMMARY_PATH = DEFAULT_INPUT_ROOT / "noise_ci_summary.tsv"
 DEFAULT_JSON_PATH = DEFAULT_INPUT_ROOT / "noise_ci_summary_99.json"
 
@@ -20,7 +20,7 @@ def relative_to_repo(path):
 
 
 def result_dirs(input_root):
-    return sorted(path.parent for path in input_root.glob("case*/*/best_feasible_ci.txt"))
+    return sorted(path.parent for path in input_root.glob("*/eta=*/best_feasible_ci.txt"))
 
 
 def row_from_result_dir(point_out_dir):
@@ -53,7 +53,7 @@ def row_from_result_dir(point_out_dir):
 
 
 def row_sort_key(row):
-    return (row["case_id"], float(row["scan_value"]))
+    return (row["case_id"], float(row["eta"]))
 
 
 def parse_args():
@@ -69,11 +69,11 @@ def parse_args():
 def main():
     args = parse_args()
     if not args.input_root.is_absolute():
-        args.input_root = (repo_dir / args.input_root).resolve()
+        args.input_root = (job_dir / args.input_root).resolve()
     if not args.summary.is_absolute():
-        args.summary = (repo_dir / args.summary).resolve()
+        args.summary = (job_dir / args.summary).resolve()
     if not args.json.is_absolute():
-        args.json = (repo_dir / args.json).resolve()
+        args.json = (job_dir / args.json).resolve()
 
     rows = []
     errors = []

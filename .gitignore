@@ -8,5 +8,7 @@ Job Submission/*/logs/
 !Job Submission/99/logs/
 Job Submission/99/logs/*
 !Job Submission/99/logs/.gitkeep
+Job Submission/99/Data/*
+!Job Submission/99/Data/.gitkeep
 Job Submission/*/runs/
 Job Submission/*/training_parameters/
