@@ -109,7 +109,7 @@ A: Calcualte Entanglement Fidelity with TMSV state as fixed input in RS, MM enco
 96: Depth-convergence scan for coherent information, non-adaptive VQT-EA n=2, eta=0.30, Nt=30, depths=2,4,...,18, same two-stage training scheme as run 84, self-contained QTorch, with run-84 depth=20 reference included in processed summary.
 97: Local eta-uncertainty robustness post-evaluation for coherent information, ns=np=2, eta0=0.05~0.95, delta in {0.01,0.02}; freezes nominal VQT run-84 and corrected GKP run-94 parameters, evaluates mismatched TMS-EA with frozen anti-squeezer calibration, uses true-eta QT formula, and saves robust CI summaries to Data_HPC/97 with plotting script Paperfig/CI_eta_uncertainty_robust.py.
 98: Fixed-parameter VQT eta-uncertainty scan at eta0=0.3; computes CI(eta0+/-delta) for delta=0.01,...,0.10 and saves results to Data_HPC/98.
-99: Noisy VQT eta scans with updated initial P/A thermal model, tau_s=tau_p=tau_A=0.99, n_P^th=n_A^th in {0.03,0.05,0.07}, eta=0.05~0.95; outputs saved under Job Submission/99/Data while preserving previous Job 99 data folders.
+99: Noisy VQT tau_A scans with updated initial P/A thermal model, tau_s=tau_p=0.99, n_P^th=n_A^th=0.01, eta in {0.30,0.50,0.70}, tau_A=1.00~0.80 step 0.01; outputs saved under Job Submission/99/Data while preserving previous Job 99 data folders.
 
 A: Calculate Entanglement Fidelity with TMSV state as fixed input in RS
 A01: TMSVEF, ECD MM, Nt = 20, np = ns =4, eta 0.1~0.9,  quadratic energy penalty, QMM encoding and decoding for mode P and A

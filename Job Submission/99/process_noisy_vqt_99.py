@@ -20,7 +20,9 @@ def relative_to_repo(path):
 
 
 def result_dirs(input_root):
-    return sorted(path.parent for path in input_root.glob("*/eta=*/best_feasible_ci.txt"))
+    result_paths = list(input_root.glob("*/eta=*/best_feasible_ci.txt"))
+    result_paths += list(input_root.glob("*/tauA=*/best_feasible_ci.txt"))
+    return sorted(path.parent for path in result_paths)
 
 
 def row_from_result_dir(point_out_dir):
@@ -53,7 +55,15 @@ def row_from_result_dir(point_out_dir):
 
 
 def row_sort_key(row):
-    return (row["case_id"], float(row["eta"]))
+    eta = row.get("eta", "")
+    kappa_a = row.get("kappa_a", "")
+    scan_value = row.get("scan_value", "")
+    return (
+        row.get("case_id", ""),
+        row.get("scan_type", ""),
+        float(eta) if eta != "" else -1.0,
+        float(kappa_a) if kappa_a != "" else float(scan_value or -1.0),
+    )
 
 
 def parse_args():
