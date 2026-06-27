@@ -8,6 +8,10 @@ DATA_ROOT_CANDIDATES = [
     REPO_DIR / "Data_HPC" / "99" / "Data",
     REPO_DIR / "Data_HPC" / "99" / "data",
 ]
+GKP_ROOT_CANDIDATES = [
+    REPO_DIR / "Data_HPC" / "93" / "Data",
+    REPO_DIR / "Data_HPC" / "93",
+]
 FIG_DIR = REPO_DIR / "Figs"
 
 os.environ.setdefault("MPLBACKEND", "Agg")
@@ -65,6 +69,7 @@ TAU_A_SCAN_CASES = [
 
 COLORS = {
     "VQT": "#1f77b4",
+    "GKP": "#d62728",
     "TMS-EA": "#2ca02c",
 }
 
@@ -76,8 +81,20 @@ def find_data_root():
     return DATA_ROOT_CANDIDATES[0]
 
 
+def find_gkp_root():
+    for path in GKP_ROOT_CANDIDATES:
+        if path.is_dir():
+            return path
+    return None
+
+
 def eta_folder(eta):
     return f"eta={float(eta):.2f}"
+
+
+def value_tag(value):
+    text = f"{float(value):.6g}"
+    return text.replace(".", "p").replace("-", "m")
 
 
 def bosonic_entropy(nbar):
@@ -210,6 +227,50 @@ def load_vqt_case(data_root, case):
     return np.array(etas), ci_array
 
 
+def gkp_case_dirs(gkp_root, n_th):
+    tag = value_tag(n_th)
+    return [
+        gkp_root / f"nPth_{tag}_kS_0p99_kP_0p99",
+        gkp_root / f"noisy_nPth={tag}_kS=0p99_kP=0p99",
+    ]
+
+
+def load_gkp_case(gkp_root, case):
+    if gkp_root is None:
+        print(f"Skipping GKP {case['case_id']}: Data_HPC/93 folder not found")
+        return None, None
+
+    case_dirs = [path for path in gkp_case_dirs(gkp_root, case["n_th"]) if path.is_dir()]
+    if not case_dirs:
+        print(f"Skipping GKP nPth={case['n_th']}: no corresponding folder in {gkp_root}")
+        return None, None
+
+    case_dir = case_dirs[0]
+    etas = []
+    ci_values = []
+    missing = []
+    for eta in ETA_VALUES:
+        ci_path = case_dir / eta_folder(eta) / "best_feasible_ci.txt"
+        etas.append(float(eta))
+        try:
+            ci_values.append(float(ci_path.read_text().strip()))
+        except (OSError, ValueError):
+            ci_values.append(np.nan)
+            missing.append(float(eta))
+
+    if missing:
+        print(f"Warning: missing GKP {case_dir.name} eta values: {missing}")
+
+    ci_array = np.array(ci_values)
+    count = int(np.count_nonzero(np.isfinite(ci_array)))
+    if count == 0:
+        print(f"Skipping GKP {case_dir.name}: no finite CI points")
+        return None, None
+
+    print(f"GKP {case_dir.name}: {count}/{len(ETA_VALUES)} points")
+    return np.array(etas), ci_array
+
+
 def tau_a_folder(tau_a):
     return f"tauA={float(tau_a):.2f}"
 
@@ -269,6 +330,11 @@ def main():
         candidates = "\n".join(f"  {path}" for path in DATA_ROOT_CANDIDATES)
         raise FileNotFoundError(f"Missing data folder. Checked:\n{candidates}")
     print(f"Using data root: {data_root}")
+    gkp_root = find_gkp_root()
+    if gkp_root is None:
+        print("GKP root not found; top-row GKP lines will be skipped")
+    else:
+        print(f"Using GKP root: {gkp_root}")
 
     plt.rcParams.update({
         "font.size": 11,
@@ -286,11 +352,16 @@ def main():
 
     for ax, case in zip(axes[0], ETA_SCAN_CASES):
         etas, vqt_ci = load_vqt_case(data_root, case)
+        gkp_etas, gkp_ci = load_gkp_case(gkp_root, case)
         tms_ci = tms_ea_curve(ETA_VALUES, case["n_th"])
         all_values.extend(vqt_ci[np.isfinite(vqt_ci)])
+        if gkp_ci is not None:
+            all_values.extend(gkp_ci[np.isfinite(gkp_ci)])
         all_values.extend(tms_ci[np.isfinite(tms_ci)])
 
         ax.plot(etas, vqt_ci, marker="o", color=COLORS["VQT"], label="VQT")
+        if gkp_ci is not None:
+            ax.plot(gkp_etas, gkp_ci, marker="s", ls="--", color=COLORS["GKP"], label="GKP")
         ax.plot(ETA_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
         ax.set_title(case["title"])
         ax.set_xlabel(r"$\eta$")
