@@ -130,8 +130,9 @@ export PYTHONNOUSERSITE=1
 python -m venv /home1/liaopeng/QuantumTransduction/venvs/job93_py39
 source /home1/liaopeng/QuantumTransduction/venvs/job93_py39/bin/activate
 
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install "numpy==1.24.1" torch
+python -m pip install --no-cache-dir --upgrade pip setuptools wheel
+python -m pip install --no-cache-dir "numpy==1.24.1"
+python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
 python - <<'PY'
 import sys
