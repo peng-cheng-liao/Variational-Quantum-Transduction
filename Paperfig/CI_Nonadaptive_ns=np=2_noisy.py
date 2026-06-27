@@ -110,7 +110,7 @@ def eta_scan_title(case):
     return (
         rf"$n_P^{{\rm th}}=n_A^{{\rm th}}={format_nth(case['n_th'])}$"
         "\n"
-        rf"$\tau_S=\tau_P=\tau_A={KAPPA_S:.2f}$"
+        rf"$\kappa_S=\kappa_P=\kappa_A={KAPPA_S:.2f}$"
     )
 
 
@@ -118,7 +118,7 @@ def tau_a_scan_title(case):
     return (
         rf"$n_P^{{\rm th}}=n_A^{{\rm th}}={format_nth(case['n_th'])}$"
         "\n"
-        rf"$\tau_S=\tau_P={KAPPA_S:.2f},\ \eta={case['eta']:.2f}$"
+        rf"$\kappa_S=\kappa_P={KAPPA_S:.2f},\ \eta={case['eta']:.2f}$"
     )
 
 
@@ -439,7 +439,7 @@ def main():
             ax.axhline(gkp_ci, ls="--", color=COLORS["GKP"], label="GKP")
         ax.plot(TAU_A_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
         ax.set_title(tau_a_scan_title(case), fontsize=TITLE_SIZE, pad=5)
-        ax.set_xlabel(r"Ancillary transmissivity $\tau_A$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
+        ax.set_xlabel(r"Ancillary transmissivity $\kappa_A$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
         ax.set_xlim(1.01, 0.79)
         ax.set_xticks(np.arange(1.00, 0.79, -0.05))
 
