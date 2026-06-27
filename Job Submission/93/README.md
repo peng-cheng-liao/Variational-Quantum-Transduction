@@ -97,6 +97,54 @@ nthP_0p1_nthA_0p1_tauAll_0p99
 The `case2_*` and `nthP_0p1_*` cases share the same GKP setting because GKP has
 no A mode and is independent of tau_A.
 
+## HPC Python Environment
+
+Job 93 uses a dedicated clean Python virtual environment on Discovery:
+
+```text
+/home1/liaopeng/QuantumTransduction/venvs/job93_py39
+```
+
+Keep `PYTHONNOUSERSITE=1` enabled. The user-site NumPy under
+`/home1/liaopeng/.local/lib/python3.9/site-packages/numpy` is broken and can
+segfault during import, so the sbatch script intentionally isolates user-site
+packages and activates the Job 93 venv before running Python.
+
+Create and test the venv on Discovery with:
+
+```bash
+cd /home1/liaopeng/QuantumTransduction/93
+
+module purge
+module load legacy/CentOS7
+module load gcc/11.3.0
+module load python/3.9.12
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export PYTHONNOUSERSITE=1
+
+python -m venv /home1/liaopeng/QuantumTransduction/venvs/job93_py39
+source /home1/liaopeng/QuantumTransduction/venvs/job93_py39/bin/activate
+
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install "numpy==1.24.1" torch
+
+python - <<'PY'
+import sys
+print("Python executable:", sys.executable)
+import datetime
+print("datetime ok")
+import numpy
+print("numpy:", numpy.__version__)
+import torch
+print("torch:", torch.__version__)
+PY
+```
+
 ## Slurm
 
 Submit the 133-task array on Discovery:

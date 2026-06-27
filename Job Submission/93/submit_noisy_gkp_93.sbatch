@@ -44,6 +44,14 @@ module load python/3.9.12
 
 mkdir -p logs
 
+VENV_PATH="/home1/liaopeng/QuantumTransduction/venvs/job93_py39"
+if [ ! -f "${VENV_PATH}/bin/activate" ]; then
+  echo "ERROR: Missing Job 93 Python virtual environment: ${VENV_PATH}" >&2
+  echo "Create it with the setup commands documented in README.md before submitting." >&2
+  exit 1
+fi
+source "${VENV_PATH}/bin/activate"
+
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
@@ -53,6 +61,17 @@ export PYTHONNOUSERSITE=1
 export MPLBACKEND=Agg
 export MPLCONFIGDIR="${SCRIPT_DIR}/.mplconfig"
 mkdir -p "${MPLCONFIGDIR}"
+
+python - <<'PY'
+import sys
+print("Python executable:", sys.executable)
+import datetime
+print("datetime ok")
+import numpy
+print("numpy:", numpy.__version__)
+import torch
+print("torch:", torch.__version__)
+PY
 
 NUM_ETAS=19
 TASK_ID="${SLURM_ARRAY_TASK_ID}"
