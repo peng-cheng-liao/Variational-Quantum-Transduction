@@ -81,11 +81,10 @@ is passed to the calculation script.
 
 ## Job 99 Eta Cases
 
-The materialized VQT-compatible eta cases are:
+The 8 materialized VQT-compatible eta cases are:
 
 ```text
 case1_eta_scan_nthP_0_nthA_0_tauA_0p90
-nthP_0_nthA_0_tauAll_0p99
 case2_eta_scan_nthP_0p1_nthA_0p1_tauA_0p90
 nthP_0p001_nthA_0p001_tauAll_0p99
 nthP_0p01_nthA_0p01_tauAll_0p99
@@ -95,8 +94,8 @@ nthP_0p07_nthA_0p07_tauAll_0p99
 nthP_0p1_nthA_0p1_tauAll_0p99
 ```
 
-The `case2_*` and `nthP_0p1_*` cases share the same GKP setting. The two
-zero-thermal cases also share the same GKP setting.
+The `case2_*` and `nthP_0p1_*` cases share the same GKP setting because GKP has
+no A mode and is independent of tau_A.
 
 ## Slurm
 
@@ -141,7 +140,7 @@ python calculate_noisy_gkp_93.py --setting-index 0 --eta-index 0 --dry-run
 python calculate_noisy_gkp_93.py --setting-index 6 --eta-index 18 --dry-run
 ```
 
-Materialize VQT-compatible case folders after shared outputs are complete:
+Materialize the 8 VQT-compatible case folders after the 133 shared tasks finish:
 
 ```bash
 python process_noisy_gkp_93.py --materialize-cases

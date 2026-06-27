@@ -93,12 +93,6 @@ VQT_ETA_CASES = [
         "eta scan, no initial thermal photons, VQT tau_A=0.90 metadata only",
     ),
     make_vqt_eta_case(
-        "nthP_0_nthA_0_tauAll_0p99",
-        0.0,
-        0.99,
-        "eta scan, no initial thermal photons, VQT tau_S=tau_P=tau_A=0.99 metadata only",
-    ),
-    make_vqt_eta_case(
         "case2_eta_scan_nthP_0p1_nthA_0p1_tauA_0p90",
         0.1,
         0.90,
