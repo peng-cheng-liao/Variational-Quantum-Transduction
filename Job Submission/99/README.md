@@ -1,4 +1,4 @@
-# Job 99: Initial-P/A thermal noisy VQT tau_A scans
+# Job 99: Initial-P/A thermal noisy VQT tau_A scan
 
 Job 99 is a self-contained HPC job for noisy VQT coherent-information
 evaluation with local `QTorch`, local run-84 parameter files, a Slurm array
@@ -25,7 +25,7 @@ Do not use `n_a` for the initial thermal state of A.
 
 ## Scan
 
-The active run scans tau_A at fixed eta values. All cases use:
+The active run scans tau_A at fixed eta. The case uses:
 
 ```text
 tau_s = tau_p = 0.99
@@ -33,10 +33,10 @@ kappa_o = kappa_m = 0.99
 n_P^th = n_A^th = 0.01
 ```
 
-Fixed eta values:
+Fixed eta:
 
 ```text
-eta = 0.30, 0.50, 0.70
+eta = 0.40
 ```
 
 Tau_A grid:
@@ -63,9 +63,10 @@ preserved and should not be deleted. New runs use distinct case subfolders.
 Case subfolders:
 
 ```text
-Data/eta_0p30_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan/tauA=1.00/
-Data/eta_0p50_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan/tauA=1.00/
-Data/eta_0p70_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan/tauA=1.00/
+Data/eta_0p40_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan/tauA=1.00/
+Data/eta_0p40_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan/tauA=0.99/
+...
+Data/eta_0p40_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan/tauA=0.80/
 ```
 
 Each tauA folder contains:
@@ -139,10 +140,10 @@ Slurm stdout/stderr files are written to:
 
 ## Runtime Notes
 
-The full scan has 63 tasks:
+The full scan has 21 tasks:
 
 ```text
-3 fixed eta settings x 21 tau_A points
+1 fixed eta setting x 21 tau_A points
 ```
 
 The Slurm array maps each `SLURM_ARRAY_TASK_ID` to an explicit `case_index`

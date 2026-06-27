@@ -10,7 +10,7 @@
 #SBATCH --chdir=/home1/liaopeng/QuantumTransduction/99
 #SBATCH --output=/home1/liaopeng/QuantumTransduction/99/logs/noisy_vqt_99_%A_%a.out
 #SBATCH --error=/home1/liaopeng/QuantumTransduction/99/logs/noisy_vqt_99_%A_%a.err
-#SBATCH --array=0-62
+#SBATCH --array=0-20
 
 set -euo pipefail
 
@@ -33,21 +33,17 @@ export MPLCONFIGDIR="${JOB_DIR}/.mplconfig"
 mkdir -p "${MPLCONFIGDIR}"
 
 # Explicit task map:
-#   case 0: tau_A scan, eta=0.30, n_P^th=n_A^th=0.01, tau_S=tau_P=0.99, 21 tau_A points
-#   case 1: tau_A scan, eta=0.50, n_P^th=n_A^th=0.01, tau_S=tau_P=0.99, 21 tau_A points
-#   case 2: tau_A scan, eta=0.70, n_P^th=n_A^th=0.01, tau_S=tau_P=0.99, 21 tau_A points
-CASE_LENGTHS=(21 21 21)
+#   case 0: tau_A scan, eta=0.40, n_P^th=n_A^th=0.01, tau_S=tau_P=0.99, 21 tau_A points
+CASE_LENGTHS=(21)
 CASE_NAMES=(
-  eta_0p30_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan
-  eta_0p50_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan
-  eta_0p70_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan
+  eta_0p40_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan
 )
 
 TASK_ID="${SLURM_ARRAY_TASK_ID}"
 REMAINING="${TASK_ID}"
 CASE_IDX=-1
 SCAN_IDX=-1
-for IDX in 0 1 2; do
+for IDX in "${!CASE_LENGTHS[@]}"; do
   LENGTH="${CASE_LENGTHS[$IDX]}"
   if (( REMAINING < LENGTH )); then
     CASE_IDX="${IDX}"
