@@ -25,23 +25,58 @@ fig_dir = repo_dir / "Figs"
 
 VQT_NOISE_RUN_ID = 99
 GKP_NOISE_RUN_ID = 93
-ETA_SCAN_CASE = "case2_eta_scan_nthP_0p1_nthA_0p1_tauA_0p90"
-TAUA_SCAN_CASE = "case4_tauA_scan_eta_0p60_nthP_0p1_nthA_0p1"
-GKP_ETA_SCAN_CASE = "noisy_nPth=0p1_kS=0p99_kP=0p99"
+GKP_ETA_SCAN_CASES = {
+    0.1: {
+        "run_id": GKP_NOISE_RUN_ID,
+        "case_folder": "noisy_nPth=0p1_kS=0p99_kP=0p99",
+    },
+}
 
 ETA_FIXED_FOR_TAUA_SCAN = 0.60
 KAPPA_S = 0.99
 KAPPA_P = 0.99
 KAPPA_A_FOR_ETA_SCAN = 0.90
-N_TH_P = 0.1
-N_TH_A = 0.1
+
+ETA_SCAN_CASES = [
+    {
+        "case_id": "case1",
+        "case_folder": "case1_eta_scan_nthP_0_nthA_0_tauA_0p90",
+        "n_th_p": 0.0,
+        "n_th_a": 0.0,
+        "kappa_a": KAPPA_A_FOR_ETA_SCAN,
+    },
+    {
+        "case_id": "case2",
+        "case_folder": "case2_eta_scan_nthP_0p1_nthA_0p1_tauA_0p90",
+        "n_th_p": 0.1,
+        "n_th_a": 0.1,
+        "kappa_a": KAPPA_A_FOR_ETA_SCAN,
+    },
+]
+
+TAUA_SCAN_CASES = [
+    {
+        "case_id": "case3",
+        "case_folder": "case3_tauA_scan_eta_0p60_nthP_0_nthA_0",
+        "n_th_p": 0.0,
+        "n_th_a": 0.0,
+        "eta": ETA_FIXED_FOR_TAUA_SCAN,
+    },
+    {
+        "case_id": "case4",
+        "case_folder": "case4_tauA_scan_eta_0p60_nthP_0p1_nthA_0p1",
+        "n_th_p": 0.1,
+        "n_th_a": 0.1,
+        "eta": ETA_FIXED_FOR_TAUA_SCAN,
+    },
+]
 
 etalist = np.around(np.arange(0.05, 1.0, 0.05), 2)
 tau_a_values = np.array([round(1.00 - 0.01 * i, 2) for i in range(21)])
 n_s = 2
 n_p = 2
-FIGSIZE = (8.5, 3.8)
-AXIS_LABEL_SIZE = 15
+FIGSIZE = (10.8, 7.2)
+AXIS_LABEL_SIZE = 14
 TICK_LABEL_SIZE = 12
 TITLE_SIZE = 13
 LEGEND_SIZE = 13
@@ -59,6 +94,10 @@ def tau_a_folder(tau_a):
 
 def _format_values(values):
     return ", ".join(f"{value:.2f}" for value in values) if values else "none"
+
+
+def _format_nth(value):
+    return "0" if abs(float(value)) < 1e-12 else f"{float(value):.1f}"
 
 
 def _metadata_close(config, keys, expected, tol=1e-9):
@@ -206,26 +245,26 @@ def thermal_loss_ci_bound(tau, n_env, n_s=2, num_grid=1001):
     return max(0.0, float(np.nanmax(ci_values)))
 
 
-def direct_qt_effective_params(eta):
+def direct_qt_effective_params(eta, n_th_p):
     tau = KAPPA_P * eta
     denom = 1.0 - tau
     if denom <= 1e-12:
         print(f"Warning: invalid QT effective denominator at eta={eta:.2f}")
         return np.nan, np.nan
-    n_eff = KAPPA_P * (1.0 - eta) * N_TH_P / denom
+    n_eff = KAPPA_P * (1.0 - eta) * n_th_p / denom
     return tau, n_eff
 
 
-def gaussian_qt_curve(etas=etalist):
+def gaussian_qt_curve(etas, n_th_p):
     values = []
     for eta in etas:
-        tau, n_eff = direct_qt_effective_params(float(eta))
+        tau, n_eff = direct_qt_effective_params(float(eta), float(n_th_p))
         values.append(thermal_loss_ci_bound(tau, n_eff, n_s=n_s))
-    print(f"QT: direct thermal-loss baseline, eta_points={len(etas)}")
+    print(f"QT: direct thermal-loss baseline, n_P^th={n_th_p:.1f}, eta_points={len(etas)}")
     return np.array(values)
 
 
-def tms_ea_effective_params(eta, kappa_a):
+def tms_ea_effective_params(eta, kappa_a, n_th_p):
     G = n_p + 1.0
     denom = kappa_a * G - KAPPA_P * (1.0 - eta) * (G - 1.0)
     if denom <= 0.0:
@@ -245,7 +284,7 @@ def tms_ea_effective_params(eta, kappa_a):
         return np.nan, np.nan
 
     n_eff = (
-        (G_star * KAPPA_P * (1.0 - eta) / G) * N_TH_P
+        (G_star * KAPPA_P * (1.0 - eta) / G) * n_th_p
         + (G_star - 1.0) * (1.0 - kappa_a)
     ) / (1.0 - KAPPA_P * eta * G_star)
     if n_eff < -1e-12:
@@ -270,13 +309,13 @@ def _summarize_tms_params(label, tau_values, n_eff_values, invalid_x):
         print(f"Warning: no valid TMS-EA {label} points")
 
 
-def gaussian_tms_ea_eta_curve(etas, kappa_a):
+def gaussian_tms_ea_eta_curve(etas, kappa_a, n_th_p):
     values = []
     tau_values = []
     n_eff_values = []
     invalid_etas = []
     for eta in etas:
-        tau, n_eff = tms_ea_effective_params(float(eta), float(kappa_a))
+        tau, n_eff = tms_ea_effective_params(float(eta), float(kappa_a), float(n_th_p))
         if not np.isfinite(tau) or not np.isfinite(n_eff):
             values.append(np.nan)
             invalid_etas.append(float(eta))
@@ -285,17 +324,22 @@ def gaussian_tms_ea_eta_curve(etas, kappa_a):
         n_eff_values.append(n_eff)
         values.append(thermal_loss_ci_bound(tau, n_eff, n_s=n_s))
 
-    _summarize_tms_params(f"eta scan tau_A={kappa_a:.2f}", tau_values, n_eff_values, invalid_etas)
+    _summarize_tms_params(
+        f"eta scan tau_A={kappa_a:.2f}, n_P^th={n_th_p:.1f}",
+        tau_values,
+        n_eff_values,
+        invalid_etas,
+    )
     return np.array(values)
 
 
-def gaussian_tms_ea_tau_a_curve(tau_a_scan_values, eta):
+def gaussian_tms_ea_tau_a_curve(tau_a_scan_values, eta, n_th_p):
     values = []
     tau_values = []
     n_eff_values = []
     invalid_tau_a = []
     for tau_a in tau_a_scan_values:
-        tau, n_eff = tms_ea_effective_params(float(eta), float(tau_a))
+        tau, n_eff = tms_ea_effective_params(float(eta), float(tau_a), float(n_th_p))
         if not np.isfinite(tau) or not np.isfinite(n_eff):
             values.append(np.nan)
             invalid_tau_a.append(float(tau_a))
@@ -304,46 +348,86 @@ def gaussian_tms_ea_tau_a_curve(tau_a_scan_values, eta):
         n_eff_values.append(n_eff)
         values.append(thermal_loss_ci_bound(tau, n_eff, n_s=n_s))
 
-    _summarize_tms_params(f"tau_A scan eta={eta:.2f}", tau_values, n_eff_values, invalid_tau_a)
+    _summarize_tms_params(
+        f"tau_A scan eta={eta:.2f}, n_P^th={n_th_p:.1f}",
+        tau_values,
+        n_eff_values,
+        invalid_tau_a,
+    )
     return np.array(values)
 
 
-def plot_eta_panel(ax):
+def _scan_has_all_ci(run_id, case_folder, scan_values, scan_type):
+    result_folder = data_dir / str(run_id) / case_folder
+    for value in [float(item) for item in scan_values]:
+        if scan_type == "eta":
+            ci_path = result_folder / eta_folder(value) / "best_feasible_ci.txt"
+        elif scan_type == "tau_a":
+            ci_path = result_folder / tau_a_folder(value) / "best_feasible_ci.txt"
+        else:
+            raise ValueError(f"Unsupported scan_type: {scan_type}")
+        if not ci_path.exists():
+            return False
+    return True
+
+
+def _gkp_case_for_nth(n_th_p):
+    gkp_case = GKP_ETA_SCAN_CASES.get(round(float(n_th_p), 10))
+    if gkp_case is None:
+        return None
+    if not _scan_has_all_ci(gkp_case["run_id"], gkp_case["case_folder"], etalist, "eta"):
+        print(
+            f"Skipping GKP for n_P^th={n_th_p:.1f}: "
+            f"{gkp_case['case_folder']} is incomplete"
+        )
+        return None
+    return gkp_case
+
+
+def plot_eta_panel(ax, case):
+    n_th_p = case["n_th_p"]
+    n_th_a = case["n_th_a"]
+    kappa_a = case["kappa_a"]
     vqt_eta, vqt_ci = load_ci_scan(
         VQT_NOISE_RUN_ID,
-        ETA_SCAN_CASE,
+        case["case_folder"],
         etalist,
         "eta",
-        "VQT eta scan",
+        f"VQT {case['case_id']} eta scan",
         expected_metadata={
             "kappa_s": KAPPA_S,
             "kappa_p": KAPPA_P,
-            "kappa_a": KAPPA_A_FOR_ETA_SCAN,
-            "n_th_p": N_TH_P,
-            "n_th_a": N_TH_A,
+            "kappa_a": kappa_a,
+            "n_th_p": n_th_p,
+            "n_th_a": n_th_a,
         },
     )
-    gkp_eta, gkp_ci = load_ci_scan(
-        GKP_NOISE_RUN_ID,
-        GKP_ETA_SCAN_CASE,
-        etalist,
-        "eta",
-        "GKP eta scan",
-        expected_metadata={
-            "kappa_s": KAPPA_S,
-            "kappa_p": KAPPA_P,
-            "n_th_p": N_TH_P,
-        },
-    )
-    tms_ci = gaussian_tms_ea_eta_curve(etalist, KAPPA_A_FOR_ETA_SCAN)
-    qt_ci = gaussian_qt_curve(etalist)
+    tms_ci = gaussian_tms_ea_eta_curve(etalist, kappa_a, n_th_p)
+    qt_ci = gaussian_qt_curve(etalist, n_th_p)
 
     ax.plot(vqt_eta, vqt_ci, label="VQT", marker="o", color=default_colors[0])
-    ax.plot(gkp_eta, gkp_ci, label="GKP", marker="*", ls="--", color=default_colors[1])
+    gkp_case = _gkp_case_for_nth(n_th_p)
+    if gkp_case is not None:
+        gkp_eta, gkp_ci = load_ci_scan(
+            gkp_case["run_id"],
+            gkp_case["case_folder"],
+            etalist,
+            "eta",
+            f"GKP n_P^th={n_th_p:.1f} eta scan",
+            expected_metadata={
+                "kappa_s": KAPPA_S,
+                "kappa_p": KAPPA_P,
+                "n_th_p": n_th_p,
+            },
+        )
+        ax.plot(gkp_eta, gkp_ci, label="GKP", marker="*", ls="--", color=default_colors[1])
+    else:
+        print(f"Skipping GKP for {case['case_id']}: no corresponding n_P^th={n_th_p:.1f} data")
+
     ax.plot(etalist, tms_ci, label="TMS-EA", marker="^", color=default_colors[2])
     ax.plot(etalist, qt_ci, label="QT", marker="v", ls="--", color=default_colors[3])
     ax.set_title(
-        r"$n_P^{\rm th}=n_A^{\rm th}=0.1,\ \tau_S=\tau_P=0.99,\ \tau_A=0.90$",
+        rf"$n_P^{{\rm th}}=n_A^{{\rm th}}={_format_nth(n_th_p)},\ \tau_A={kappa_a:.2f}$",
         fontsize=TITLE_SIZE,
         pad=5,
     )
@@ -351,50 +435,37 @@ def plot_eta_panel(ax):
     return vqt_eta, vqt_ci
 
 
-def plot_tau_a_panel(ax):
+def plot_tau_a_panel(ax, case):
+    n_th_p = case["n_th_p"]
+    n_th_a = case["n_th_a"]
+    eta = case["eta"]
     vqt_tau_a, vqt_ci = load_ci_scan(
         VQT_NOISE_RUN_ID,
-        TAUA_SCAN_CASE,
+        case["case_folder"],
         tau_a_values,
         "tau_a",
-        "VQT tau_A scan",
+        f"VQT {case['case_id']} tau_A scan",
         expected_metadata={
-            "eta": ETA_FIXED_FOR_TAUA_SCAN,
+            "eta": eta,
             "kappa_s": KAPPA_S,
             "kappa_p": KAPPA_P,
-            "n_th_p": N_TH_P,
-            "n_th_a": N_TH_A,
+            "n_th_p": n_th_p,
+            "n_th_a": n_th_a,
         },
     )
-    tms_ci = gaussian_tms_ea_tau_a_curve(tau_a_values, ETA_FIXED_FOR_TAUA_SCAN)
+    tms_ci = gaussian_tms_ea_tau_a_curve(tau_a_values, eta, n_th_p)
 
     ax.plot(vqt_tau_a, vqt_ci, label="VQT", marker="o", color=default_colors[0])
     ax.plot(tau_a_values, tms_ci, label="TMS-EA", marker="^", color=default_colors[2])
     ax.set_title(
-        r"$\eta=0.60,\ n_P^{\rm th}=n_A^{\rm th}=0.1,\ \tau_S=\tau_P=0.99$",
+        rf"$\eta={eta:.2f},\ n_P^{{\rm th}}=n_A^{{\rm th}}={_format_nth(n_th_p)}$",
         fontsize=TITLE_SIZE,
         pad=5,
     )
-    ax.set_xlabel(r"Auxiliary transmissivity $\tau_A$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
+    ax.set_xlabel(r"Ancillary transmissivity $\tau_A$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
+    ax.set_xticks(np.arange(0.80, 1.001, 0.05))
+    ax.set_xlim(1.01, 0.79)
     return vqt_tau_a, vqt_ci
-
-
-def _check_eta_tau_a_consistency(eta_values, eta_ci, tau_a_scan_values, tau_a_ci):
-    eta_idx = np.where(np.isclose(eta_values, ETA_FIXED_FOR_TAUA_SCAN))[0]
-    tau_a_idx = np.where(np.isclose(tau_a_scan_values, KAPPA_A_FOR_ETA_SCAN))[0]
-    if len(eta_idx) == 0 or len(tau_a_idx) == 0:
-        print("Warning: could not compare eta=0.60 and tau_A=0.90 VQT values")
-        return
-
-    eta_value = eta_ci[eta_idx[0]]
-    tau_a_value = tau_a_ci[tau_a_idx[0]]
-    diff = abs(eta_value - tau_a_value)
-    print(
-        f"VQT consistency eta=0.60 vs tau_A=0.90: "
-        f"{eta_value:.16g} vs {tau_a_value:.16g}, diff={diff:.3g}"
-    )
-    if not np.isclose(eta_value, tau_a_value, rtol=1e-10, atol=1e-12):
-        print("Warning: VQT eta/tau_A scan consistency check failed")
 
 
 def _unique_legend_handles(axes):
@@ -418,24 +489,30 @@ def main():
         "lines.linewidth": LINE_WIDTH,
         "lines.markersize": MARKER_SIZE,
     })
-    fig, axes = plt.subplots(1, 2, figsize=FIGSIZE, sharey=True)
+    fig, axes = plt.subplots(2, 2, figsize=FIGSIZE, sharey=True)
 
-    eta_values, eta_ci = plot_eta_panel(axes[0])
-    tau_a_scan_values, tau_a_ci = plot_tau_a_panel(axes[1])
-    _check_eta_tau_a_consistency(eta_values, eta_ci, tau_a_scan_values, tau_a_ci)
-    print(f"tau_A scan endpoints: {tau_a_scan_values[0]:.2f}, {tau_a_scan_values[-1]:.2f}")
+    plot_eta_panel(axes[0, 0], ETA_SCAN_CASES[0])
+    plot_eta_panel(axes[0, 1], ETA_SCAN_CASES[1])
+    tau_a_scan_values_0, _ = plot_tau_a_panel(axes[1, 0], TAUA_SCAN_CASES[0])
+    tau_a_scan_values_1, _ = plot_tau_a_panel(axes[1, 1], TAUA_SCAN_CASES[1])
+    print(
+        f"tau_A scan endpoints: "
+        f"{tau_a_scan_values_0[0]:.2f}-{tau_a_scan_values_0[-1]:.2f}, "
+        f"{tau_a_scan_values_1[0]:.2f}-{tau_a_scan_values_1[-1]:.2f}"
+    )
 
-    for ax in axes:
+    for ax in axes.flat:
         ax.tick_params(axis="both", which="major", labelsize=TICK_LABEL_SIZE, width=1.0, length=3.5)
         ax.grid(True, alpha=0.25)
 
-    axes[0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
-    handles, labels = _unique_legend_handles(axes)
+    axes[0, 0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
+    axes[1, 0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
+    handles, labels = _unique_legend_handles(axes.flat)
     fig.legend(
         handles,
         labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.02),
+        bbox_to_anchor=(0.5, 1.01),
         ncol=4,
         frameon=False,
         fontsize=LEGEND_SIZE,
@@ -443,7 +520,7 @@ def main():
         columnspacing=1.2,
     )
 
-    fig.tight_layout(rect=[0, 0, 1, 0.90], w_pad=0.8)
+    fig.tight_layout(rect=[0, 0, 1, 0.93], w_pad=0.8, h_pad=1.2)
     fig_dir.mkdir(exist_ok=True)
     output_paths = [
         fig_dir / "CI_ns=np=2_Non-Adaptive_noisy.jpg",
