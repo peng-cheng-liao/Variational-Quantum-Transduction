@@ -133,6 +133,7 @@ source /home1/liaopeng/QuantumTransduction/venvs/job93_py39/bin/activate
 python -m pip install --no-cache-dir --upgrade pip setuptools wheel
 python -m pip install --no-cache-dir "numpy==1.24.1"
 python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+python -m pip install --no-cache-dir qutip
 
 python - <<'PY'
 import sys
@@ -143,6 +144,8 @@ import numpy
 print("numpy:", numpy.__version__)
 import torch
 print("torch:", torch.__version__)
+import qutip
+print("qutip:", qutip.__version__)
 PY
 ```
 
