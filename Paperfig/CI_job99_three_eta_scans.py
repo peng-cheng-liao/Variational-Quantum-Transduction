@@ -23,7 +23,7 @@ KAPPA_A = 0.99
 N_S = 2.0
 N_P = 2.0
 
-CASES = [
+ETA_SCAN_CASES = [
     {
         "case_id": "nthP_0p1_nthA_0p1_tauAll_0p99",
         "n_th": 0.1,
@@ -39,10 +39,27 @@ CASES = [
         "n_th": 0.01,
         "title": r"$n_P^{\rm th}=n_A^{\rm th}=0.01$",
     },
+]
+
+TAU_A_VALUES = np.around(np.arange(0.80, 1.01, 0.01), 2)
+TAU_A_SCAN_CASES = [
     {
-        "case_id": "nthP_0p001_nthA_0p001_tauAll_0p99",
-        "n_th": 0.001,
-        "title": r"$n_P^{\rm th}=n_A^{\rm th}=0.001$",
+        "case_id": "eta_0p30_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
+        "eta": 0.30,
+        "n_th": 0.01,
+        "title": r"$\eta=0.30,\ n_P^{\rm th}=n_A^{\rm th}=0.01$",
+    },
+    {
+        "case_id": "eta_0p50_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
+        "eta": 0.50,
+        "n_th": 0.01,
+        "title": r"$\eta=0.50,\ n_P^{\rm th}=n_A^{\rm th}=0.01$",
+    },
+    {
+        "case_id": "eta_0p70_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
+        "eta": 0.70,
+        "n_th": 0.01,
+        "title": r"$\eta=0.70,\ n_P^{\rm th}=n_A^{\rm th}=0.01$",
     },
 ]
 
@@ -111,28 +128,36 @@ def thermal_loss_ci_bound(transmissivity, env_nbar, input_energy_limit=N_S, num_
     return max(0.0, float(np.nanmax(values)))
 
 
-def tms_ea_effective_params(eta, n_th):
+def tms_ea_effective_params(eta, n_th, kappa_a=KAPPA_A):
     gain = N_P + 1.0
-    denom = KAPPA_A * gain - KAPPA_P * (1.0 - eta) * (gain - 1.0)
+    denom = kappa_a * gain - KAPPA_P * (1.0 - eta) * (gain - 1.0)
     if denom <= 0.0:
         return np.nan, np.nan
 
-    gain_star = KAPPA_A * gain / denom
+    gain_star = kappa_a * gain / denom
     tau_eff = KAPPA_P * eta * gain_star
     if tau_eff >= 1.0:
         return np.nan, np.nan
 
     n_eff = (
         (gain_star * KAPPA_P * (1.0 - eta) / gain) * n_th
-        + (gain_star - 1.0) * (1.0 - KAPPA_A)
+        + (gain_star - 1.0) * (1.0 - kappa_a)
     ) / (1.0 - KAPPA_P * eta * gain_star)
     return tau_eff, max(float(n_eff), 0.0)
 
 
-def tms_ea_curve(etas, n_th):
+def tms_ea_curve(etas, n_th, kappa_a=KAPPA_A):
     values = []
     for eta in etas:
-        tau_eff, n_eff = tms_ea_effective_params(float(eta), float(n_th))
+        tau_eff, n_eff = tms_ea_effective_params(float(eta), float(n_th), float(kappa_a))
+        values.append(thermal_loss_ci_bound(tau_eff, n_eff))
+    return np.array(values)
+
+
+def tms_ea_tau_a_curve(tau_a_values, eta, n_th):
+    values = []
+    for tau_a in tau_a_values:
+        tau_eff, n_eff = tms_ea_effective_params(float(eta), float(n_th), float(tau_a))
         values.append(thermal_loss_ci_bound(tau_eff, n_eff))
     return np.array(values)
 
@@ -185,6 +210,59 @@ def load_vqt_case(data_root, case):
     return np.array(etas), ci_array
 
 
+def tau_a_folder(tau_a):
+    return f"tauA={float(tau_a):.2f}"
+
+
+def load_tau_a_case(data_root, case):
+    case_dir = data_root / case["case_id"]
+    tau_a_values = []
+    ci_values = []
+    missing = []
+    metadata_warnings = []
+
+    for tau_a in TAU_A_VALUES:
+        tau_a_dir = case_dir / tau_a_folder(tau_a)
+        ci_path = tau_a_dir / "best_feasible_ci.txt"
+        config_path = tau_a_dir / "noise_config.json"
+        tau_a_values.append(float(tau_a))
+        try:
+            ci_values.append(float(ci_path.read_text().strip()))
+        except (OSError, ValueError):
+            ci_values.append(np.nan)
+            missing.append(float(tau_a))
+            continue
+
+        if config_path.exists():
+            config = json.loads(config_path.read_text())
+            checks = [
+                ("eta", case["eta"]),
+                ("scan_value", float(tau_a)),
+                ("initial_p_thermal_nbar", case["n_th"]),
+                ("initial_a_thermal_nbar", case["n_th"]),
+                ("kappa_o", 0.99),
+                ("kappa_m", 0.99),
+                ("kappa_a", float(tau_a)),
+                ("n_o", 0.0),
+                ("n_m", 0.0),
+                ("n_a", 0.0),
+            ]
+            for key, expected in checks:
+                if key in config and abs(float(config[key]) - expected) > 1e-9:
+                    metadata_warnings.append(
+                        f"{case['case_id']} {tau_a_folder(tau_a)} {key}={config[key]}"
+                    )
+
+    if missing:
+        print(f"Warning: missing {case['case_id']} tau_A values: {missing}")
+    for warning in metadata_warnings:
+        print(f"Warning: metadata mismatch: {warning}")
+
+    ci_array = np.array(ci_values)
+    print(f"{case['case_id']}: {np.count_nonzero(np.isfinite(ci_array))}/{len(TAU_A_VALUES)} points")
+    return np.array(tau_a_values), ci_array
+
+
 def main():
     data_root = find_data_root()
     if not data_root.is_dir():
@@ -203,10 +281,10 @@ def main():
         "lines.markersize": 5.2,
     })
 
-    fig, axes = plt.subplots(1, 3, figsize=(12.0, 3.5), sharey=True)
+    fig, axes = plt.subplots(2, 3, figsize=(12.0, 7.0), sharey=True)
     all_values = []
 
-    for ax, case in zip(axes, CASES):
+    for ax, case in zip(axes[0], ETA_SCAN_CASES):
         etas, vqt_ci = load_vqt_case(data_root, case)
         tms_ci = tms_ea_curve(ETA_VALUES, case["n_th"])
         all_values.extend(vqt_ci[np.isfinite(vqt_ci)])
@@ -220,16 +298,31 @@ def main():
         ax.set_xticks(np.arange(0.1, 1.0, 0.2))
         ax.grid(True, alpha=0.25)
 
-    axes[0].set_ylabel("Coherent Information")
+    for ax, case in zip(axes[1], TAU_A_SCAN_CASES):
+        tau_a_values, vqt_ci = load_tau_a_case(data_root, case)
+        tms_ci = tms_ea_tau_a_curve(TAU_A_VALUES, case["eta"], case["n_th"])
+        all_values.extend(vqt_ci[np.isfinite(vqt_ci)])
+        all_values.extend(tms_ci[np.isfinite(tms_ci)])
+
+        ax.plot(tau_a_values, vqt_ci, marker="o", color=COLORS["VQT"], label="VQT")
+        ax.plot(TAU_A_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
+        ax.set_title(case["title"])
+        ax.set_xlabel(r"$\tau_A$")
+        ax.set_xlim(0.79, 1.01)
+        ax.set_xticks(np.arange(0.80, 1.01, 0.05))
+        ax.grid(True, alpha=0.25)
+
+    axes[0, 0].set_ylabel("Coherent Information")
+    axes[1, 0].set_ylabel("Coherent Information")
     if all_values:
         ymin = min(all_values)
         ymax = max(all_values)
         pad = 0.06 * max(ymax - ymin, 1.0)
-        axes[0].set_ylim(ymin - pad, ymax + pad)
+        axes[0, 0].set_ylim(ymin - pad, ymax + pad)
 
-    handles, labels = axes[0].get_legend_handles_labels()
+    handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False, bbox_to_anchor=(0.5, 1.02))
-    fig.tight_layout(rect=[0, 0, 1, 0.91])
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
 
     FIG_DIR.mkdir(exist_ok=True)
     for suffix in ("jpg", "pdf"):
