@@ -17,9 +17,11 @@ FIG_DIR = REPO_DIR / "Figs"
 os.environ.setdefault("MPLBACKEND", "Agg")
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/vqt_mplconfig_job99")
 
+from matplotlib import rc
 import matplotlib.pyplot as plt
 import numpy as np
 
+rc("text", usetex=True)
 
 ETA_VALUES = np.around(np.arange(0.05, 1.0, 0.05), 2)
 KAPPA_P = 0.99
@@ -100,7 +102,7 @@ def eta_scan_title(case):
     return (
         rf"$n_P^{{\rm th}}=n_A^{{\rm th}}={format_nth(case['n_th'])}$"
         "\n"
-        rf"$\tau_S={KAPPA_S:.2f},\ \tau_P={KAPPA_P:.2f},\ \tau_A={KAPPA_A:.2f}$"
+        rf"$\tau_S=\tau_P=\tau_A={KAPPA_S:.2f}$"
     )
 
 
@@ -108,7 +110,7 @@ def tau_a_scan_title(case):
     return (
         rf"$\eta={case['eta']:.2f},\ n_P^{{\rm th}}=n_A^{{\rm th}}={format_nth(case['n_th'])}$"
         "\n"
-        rf"$\tau_S={KAPPA_S:.2f},\ \tau_P={KAPPA_P:.2f},\ \tau_A\ {{\rm scan}}$"
+        rf"$\tau_S=\tau_P={KAPPA_S:.2f}$"
     )
 
 
