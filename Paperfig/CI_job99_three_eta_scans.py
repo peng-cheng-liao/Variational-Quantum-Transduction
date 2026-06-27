@@ -24,6 +24,7 @@ import numpy as np
 ETA_VALUES = np.around(np.arange(0.05, 1.0, 0.05), 2)
 KAPPA_P = 0.99
 KAPPA_A = 0.99
+KAPPA_S = 0.99
 N_S = 2.0
 N_P = 2.0
 
@@ -31,17 +32,14 @@ ETA_SCAN_CASES = [
     {
         "case_id": "nthP_0p1_nthA_0p1_tauAll_0p99",
         "n_th": 0.1,
-        "title": r"$n_P^{\rm th}=n_A^{\rm th}=0.1$",
     },
     {
         "case_id": "nthP_0p05_nthA_0p05_tauAll_0p99",
         "n_th": 0.05,
-        "title": r"$n_P^{\rm th}=n_A^{\rm th}=0.05$",
     },
     {
         "case_id": "nthP_0p01_nthA_0p01_tauAll_0p99",
         "n_th": 0.01,
-        "title": r"$n_P^{\rm th}=n_A^{\rm th}=0.01$",
     },
 ]
 
@@ -51,19 +49,16 @@ TAU_A_SCAN_CASES = [
         "case_id": "eta_0p30_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
         "eta": 0.30,
         "n_th": 0.01,
-        "title": r"$\eta=0.30,\ n_P^{\rm th}=n_A^{\rm th}=0.01$",
     },
     {
         "case_id": "eta_0p50_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
         "eta": 0.50,
         "n_th": 0.01,
-        "title": r"$\eta=0.50,\ n_P^{\rm th}=n_A^{\rm th}=0.01$",
     },
     {
         "case_id": "eta_0p70_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
         "eta": 0.70,
         "n_th": 0.01,
-        "title": r"$\eta=0.70,\ n_P^{\rm th}=n_A^{\rm th}=0.01$",
     },
 ]
 
@@ -95,6 +90,26 @@ def eta_folder(eta):
 def value_tag(value):
     text = f"{float(value):.6g}"
     return text.replace(".", "p").replace("-", "m")
+
+
+def format_nth(value):
+    return f"{float(value):.3g}"
+
+
+def eta_scan_title(case):
+    return (
+        rf"$n_P^{{\rm th}}=n_A^{{\rm th}}={format_nth(case['n_th'])}$"
+        "\n"
+        rf"$\tau_S={KAPPA_S:.2f},\ \tau_P={KAPPA_P:.2f},\ \tau_A={KAPPA_A:.2f}$"
+    )
+
+
+def tau_a_scan_title(case):
+    return (
+        rf"$\eta={case['eta']:.2f},\ n_P^{{\rm th}}=n_A^{{\rm th}}={format_nth(case['n_th'])}$"
+        "\n"
+        rf"$\tau_S={KAPPA_S:.2f},\ \tau_P={KAPPA_P:.2f},\ \tau_A\ {{\rm scan}}$"
+    )
 
 
 def bosonic_entropy(nbar):
@@ -271,6 +286,28 @@ def load_gkp_case(gkp_root, case):
     return np.array(etas), ci_array
 
 
+def load_gkp_eta_value(gkp_root, case):
+    if gkp_root is None:
+        print(f"Skipping GKP eta={case['eta']:.2f}: Data_HPC/93 folder not found")
+        return np.nan
+
+    case_dirs = [path for path in gkp_case_dirs(gkp_root, case["n_th"]) if path.is_dir()]
+    if not case_dirs:
+        print(f"Skipping GKP eta={case['eta']:.2f}, nPth={case['n_th']}: no corresponding folder")
+        return np.nan
+
+    case_dir = case_dirs[0]
+    ci_path = case_dir / eta_folder(case["eta"]) / "best_feasible_ci.txt"
+    try:
+        value = float(ci_path.read_text().strip())
+    except (OSError, ValueError):
+        print(f"Skipping GKP {case_dir.name} eta={case['eta']:.2f}: missing CI")
+        return np.nan
+
+    print(f"GKP {case_dir.name} eta={case['eta']:.2f}: {value:.12g}")
+    return value
+
+
 def tau_a_folder(tau_a):
     return f"tauA={float(tau_a):.2f}"
 
@@ -363,7 +400,7 @@ def main():
         if gkp_ci is not None:
             ax.plot(gkp_etas, gkp_ci, marker="s", ls="--", color=COLORS["GKP"], label="GKP")
         ax.plot(ETA_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
-        ax.set_title(case["title"])
+        ax.set_title(eta_scan_title(case))
         ax.set_xlabel(r"$\eta$")
         ax.set_xlim(0.03, 0.97)
         ax.set_xticks(np.arange(0.1, 1.0, 0.2))
@@ -371,13 +408,18 @@ def main():
 
     for ax, case in zip(axes[1], TAU_A_SCAN_CASES):
         tau_a_values, vqt_ci = load_tau_a_case(data_root, case)
+        gkp_ci = load_gkp_eta_value(gkp_root, case)
         tms_ci = tms_ea_tau_a_curve(TAU_A_VALUES, case["eta"], case["n_th"])
         all_values.extend(vqt_ci[np.isfinite(vqt_ci)])
+        if np.isfinite(gkp_ci):
+            all_values.append(gkp_ci)
         all_values.extend(tms_ci[np.isfinite(tms_ci)])
 
         ax.plot(tau_a_values, vqt_ci, marker="o", color=COLORS["VQT"], label="VQT")
+        if np.isfinite(gkp_ci):
+            ax.axhline(gkp_ci, ls="--", color=COLORS["GKP"], label="GKP")
         ax.plot(TAU_A_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
-        ax.set_title(case["title"])
+        ax.set_title(tau_a_scan_title(case))
         ax.set_xlabel(r"$\tau_A$")
         ax.set_xlim(1.01, 0.79)
         ax.set_xticks(np.arange(1.00, 0.79, -0.05))
