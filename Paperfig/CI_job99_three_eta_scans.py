@@ -308,8 +308,8 @@ def main():
         ax.plot(TAU_A_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
         ax.set_title(case["title"])
         ax.set_xlabel(r"$\tau_A$")
-        ax.set_xlim(0.79, 1.01)
-        ax.set_xticks(np.arange(0.80, 1.01, 0.05))
+        ax.set_xlim(1.01, 0.79)
+        ax.set_xticks(np.arange(1.00, 0.79, -0.05))
         ax.grid(True, alpha=0.25)
 
     axes[0, 0].set_ylabel("Coherent Information")
