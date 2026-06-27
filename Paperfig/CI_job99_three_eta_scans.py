@@ -108,9 +108,9 @@ def eta_scan_title(case):
 
 def tau_a_scan_title(case):
     return (
-        rf"$\eta={case['eta']:.2f},\ n_P^{{\rm th}}=n_A^{{\rm th}}={format_nth(case['n_th'])}$"
+        rf"$n_P^{{\rm th}}=n_A^{{\rm th}}={format_nth(case['n_th'])}$"
         "\n"
-        rf"$\tau_S=\tau_P={KAPPA_S:.2f}$"
+        rf"$\tau_S=\tau_P={KAPPA_S:.2f},\ \eta={case['eta']:.2f}$"
     )
 
 
