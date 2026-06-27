@@ -2,6 +2,7 @@ import argparse
 import csv
 import json
 import os
+import shutil
 import sys
 import time
 from datetime import datetime
@@ -28,30 +29,118 @@ from QTorch.Transduction import transduction_protocol_CoherentInfo_GKP2_thermal_
 
 RUN_ID = 93
 SOURCE_RUN_ID = 94
+MATCHED_VQT_RUN_ID = 99
+DEFAULT_OUTPUT_ROOT = Path("Data") / "gkp_eta_scans_nPth_grid_tauSP_0p99"
 DEFAULT_ETAS = np.around(np.arange(0.05, 1.0, 0.05), 2)
+GKP_NPTH_SETTINGS = [0.0, 0.001, 0.01, 0.03, 0.05, 0.07, 0.1]
 
 DEFAULT_D1 = 2
 DEFAULT_D2 = 1
 DEFAULT_J2 = 0
 DEFAULT_NT = 30
-DEFAULT_NR = DEFAULT_D1
 
-SETUP_PRESETS = [
-    {
-        "name": "noisy",
-        "output_subdir": "noisy_nPth=0p1_kS=0p99_kP=0p99",
-        "initial_p_nbar": 0.1,
-        "kappa_o": 0.99,
-        "kappa_m": 0.99,
-        "n_o": 0.0,
-        "n_m": 0.0,
-    },
-]
-SETUP_BY_NAME = {setup["name"]: setup for setup in SETUP_PRESETS}
+
+def value_tag(value):
+    text = f"{float(value):.6g}"
+    return text.replace(".", "p").replace("-", "m")
 
 
 def eta_folder(eta):
     return f"eta={float(eta):.2f}"
+
+
+def setting_id_for_npth(npth):
+    return f"nPth_{value_tag(npth)}_kS_0p99_kP_0p99"
+
+
+def make_setting(npth):
+    setting_id = setting_id_for_npth(npth)
+    return {
+        "name": setting_id,
+        "setting_id": setting_id,
+        "output_subdir": f"shared/{setting_id}",
+        "initial_p_nbar": float(npth),
+        "kappa_o": 0.99,
+        "kappa_m": 0.99,
+        "n_o": 0.0,
+        "n_m": 0.0,
+    }
+
+
+SETUP_PRESETS = [make_setting(npth) for npth in GKP_NPTH_SETTINGS]
+SETTING_BY_ID = {setting["setting_id"]: setting for setting in SETUP_PRESETS}
+
+
+def make_vqt_eta_case(case_id, npth, vqt_kappa_a, description):
+    return {
+        "case_id": case_id,
+        "vqt_case_id": case_id,
+        "shared_setting_id": setting_id_for_npth(npth),
+        "scan_type": "eta",
+        "vqt_initial_p_thermal_nbar_metadata_only": float(npth),
+        "vqt_initial_a_thermal_nbar_metadata_only": float(npth),
+        "vqt_kappa_a_metadata_only": float(vqt_kappa_a),
+        "vqt_n_a_metadata_only": 0.0,
+        "case_description": description,
+    }
+
+
+VQT_ETA_CASES = [
+    make_vqt_eta_case(
+        "case1_eta_scan_nthP_0_nthA_0_tauA_0p90",
+        0.0,
+        0.90,
+        "eta scan, no initial thermal photons, VQT tau_A=0.90 metadata only",
+    ),
+    make_vqt_eta_case(
+        "nthP_0_nthA_0_tauAll_0p99",
+        0.0,
+        0.99,
+        "eta scan, no initial thermal photons, VQT tau_S=tau_P=tau_A=0.99 metadata only",
+    ),
+    make_vqt_eta_case(
+        "case2_eta_scan_nthP_0p1_nthA_0p1_tauA_0p90",
+        0.1,
+        0.90,
+        "eta scan, n_P^th=n_A^th=0.1, VQT tau_A=0.90 metadata only",
+    ),
+    make_vqt_eta_case(
+        "nthP_0p001_nthA_0p001_tauAll_0p99",
+        0.001,
+        0.99,
+        "eta scan, n_P^th=n_A^th=0.001, VQT tau_S=tau_P=tau_A=0.99 metadata only",
+    ),
+    make_vqt_eta_case(
+        "nthP_0p01_nthA_0p01_tauAll_0p99",
+        0.01,
+        0.99,
+        "eta scan, n_P^th=n_A^th=0.01, VQT tau_S=tau_P=tau_A=0.99 metadata only",
+    ),
+    make_vqt_eta_case(
+        "nthP_0p03_nthA_0p03_tauAll_0p99",
+        0.03,
+        0.99,
+        "eta scan, n_P^th=n_A^th=0.03, VQT tau_S=tau_P=tau_A=0.99 metadata only",
+    ),
+    make_vqt_eta_case(
+        "nthP_0p05_nthA_0p05_tauAll_0p99",
+        0.05,
+        0.99,
+        "eta scan, n_P^th=n_A^th=0.05, VQT tau_S=tau_P=tau_A=0.99 metadata only",
+    ),
+    make_vqt_eta_case(
+        "nthP_0p07_nthA_0p07_tauAll_0p99",
+        0.07,
+        0.99,
+        "eta scan, n_P^th=n_A^th=0.07, VQT tau_S=tau_P=tau_A=0.99 metadata only",
+    ),
+    make_vqt_eta_case(
+        "nthP_0p1_nthA_0p1_tauAll_0p99",
+        0.1,
+        0.99,
+        "eta scan, n_P^th=n_A^th=0.1, VQT tau_S=tau_P=tau_A=0.99 metadata only",
+    ),
+]
 
 
 def relative_to_repo(path):
@@ -177,7 +266,10 @@ def read_cached_result(eta_out_dir, eta):
         config = json.loads(config_path.read_text())
     return {
         "eta": float(eta),
-        "setup_name": config.get("setup_name", ""),
+        "scan_type": "eta",
+        "scan_value": float(eta),
+        "setting_id": config.get("shared_setting_id", config.get("setting_id", "")),
+        "shared_setting_id": config.get("shared_setting_id", ""),
         "ci_noise": float(ci_path.read_text().strip()),
         "ns_input": config.get("ns_input", ""),
         "np_input": config.get("np_input", ""),
@@ -190,8 +282,8 @@ def read_cached_result(eta_out_dir, eta):
         "zero_noise_abs_error": config.get("zero_noise_abs_error", ""),
         "zero_noise_validation_passed": config.get("zero_noise_validation_passed", ""),
         "elapsed_seconds": config.get("elapsed_seconds", ""),
-        "output_file": config.get("output_file", ""),
-        "output_folder": relative_to_repo(eta_out_dir.parent),
+        "output_file": config.get("output_file", relative_to_repo(ci_path)),
+        "output_folder": relative_to_repo(eta_out_dir),
         "source_parameter_file": config.get("source_parameter_file", ""),
     }
 
@@ -228,7 +320,7 @@ def calculate_eta(args, eta):
     parameters, parameter_path, source_info, protocol = load_parameters(eta, args.device)
     selected_source_score = source_score(source_info, required=args.validate_zero_noise)
     print(
-        f"{eta_folder(eta)} [{args.setup_name}]: starting CI evaluation, "
+        f"{eta_folder(eta)} [{args.setting_id}]: starting CI evaluation, "
         f"parameter_file={relative_to_repo(parameter_path)} "
         f"d1={protocol['d1']} d2={protocol['d2']} j2={protocol['j2']} "
         f"Nt={protocol['Nt']} NR={protocol['NR']} "
@@ -285,13 +377,26 @@ def calculate_eta(args, eta):
     config = {
         "run_id": RUN_ID,
         "source_run_id": SOURCE_RUN_ID,
-        "setup_name": args.setup_name,
+        "matched_vqt_run_id": MATCHED_VQT_RUN_ID,
+        "setting_id": args.setting_id,
+        "shared_setting_id": args.setting_id,
         "eta": float(eta),
+        "scan_type": "eta",
+        "scan_value": float(eta),
         "initial_p_thermal_nbar": args.initial_p_nbar,
         "kappa_o": args.kappa_o,
         "n_o": args.n_o,
         "kappa_m": args.kappa_m,
         "n_m": args.n_m,
+        "gkp_has_no_auxiliary_mode_A": True,
+        "gkp_independent_of_tau_A": True,
+        "vqt_case_ids": [
+            case["vqt_case_id"]
+            for case in VQT_ETA_CASES
+            if case["shared_setting_id"] == args.setting_id
+        ],
+        "shared_result_folder": relative_to_repo(eta_out_dir),
+        "materialized_case_output": False,
         "kraus_prob_tol": args.kraus_prob_tol,
         "max_kraus_terms": args.max_kraus_terms,
         "initial_thermal_prob_tol": args.initial_thermal_prob_tol,
@@ -349,7 +454,7 @@ def calculate_eta(args, eta):
     )
 
     print(
-        f"{eta_folder(eta)} [{args.setup_name}]: finished CI={ci_value:.12g} "
+        f"{eta_folder(eta)} [{args.setting_id}]: finished CI={ci_value:.12g} "
         f"ns={ns_value:.12g} np={np_value:.12g} "
         f"start={start_time.isoformat()} finish={finish_time.isoformat()} "
         f"elapsed={elapsed:.1f}s",
@@ -367,7 +472,10 @@ def calculate_eta(args, eta):
         )
     return {
         "eta": float(eta),
-        "setup_name": args.setup_name,
+        "scan_type": "eta",
+        "scan_value": float(eta),
+        "setting_id": args.setting_id,
+        "shared_setting_id": args.setting_id,
         "ci_noise": ci_value,
         "ns_input": ns_value,
         "np_input": np_value,
@@ -381,15 +489,15 @@ def calculate_eta(args, eta):
         "zero_noise_validation_passed": zero_noise_validation_passed,
         "elapsed_seconds": elapsed,
         "output_file": relative_to_repo(ci_path),
-        "output_folder": relative_to_repo(args.output_dir),
+        "output_folder": relative_to_repo(eta_out_dir),
         "source_parameter_file": relative_to_repo(parameter_path),
     }
 
 
 def select_etas(args):
-    provided = [args.eta is not None, args.eta_index is not None, args.all_etas]
+    provided = [args.eta is not None, args.eta_index is not None, args.all_eta]
     if sum(provided) > 1:
-        raise SystemExit("Use only one of --eta, --eta-index, or --all-etas.")
+        raise SystemExit("Use only one of --eta, --eta-index, or --all-eta.")
 
     if args.eta is not None:
         return np.array([args.eta], dtype=float)
@@ -403,27 +511,37 @@ def select_etas(args):
     return DEFAULT_ETAS
 
 
-def select_setup(args):
-    if args.setup is not None and args.setup_index is not None:
-        raise SystemExit("Use only one of --setup or --setup-index.")
+def select_setting(args):
+    if args.setting is not None and args.setting_index is not None:
+        raise SystemExit("Use only one of --setting or --setting-index.")
 
-    if args.setup_index is not None:
-        if args.setup_index < 0 or args.setup_index >= len(SETUP_PRESETS):
+    if args.setting_index is not None:
+        if args.setting_index < 0 or args.setting_index >= len(SETUP_PRESETS):
             raise SystemExit(
-                f"--setup-index must be in [0, {len(SETUP_PRESETS) - 1}], "
-                f"got {args.setup_index}"
+                f"--setting-index must be in [0, {len(SETUP_PRESETS) - 1}], "
+                f"got {args.setting_index}"
             )
-        setup = SETUP_PRESETS[args.setup_index]
+        setting = SETUP_PRESETS[args.setting_index]
+    elif args.setting is not None:
+        matches = [
+            setting
+            for setting in SETUP_PRESETS
+            if args.setting in (setting["setting_id"], setting["name"])
+        ]
+        if not matches:
+            valid = ", ".join(setting["setting_id"] for setting in SETUP_PRESETS)
+            raise SystemExit(f"Unknown setting {args.setting!r}; valid settings: {valid}")
+        setting = matches[0]
     else:
-        setup = SETUP_BY_NAME[args.setup or "noisy"]
+        setting = SETUP_PRESETS[0]
 
-    args.setup_name = setup["name"]
+    args.setting_id = setting["setting_id"]
     for attr in ("initial_p_nbar", "kappa_o", "kappa_m", "n_o", "n_m"):
         if getattr(args, attr) is None:
-            setattr(args, attr, setup[attr])
+            setattr(args, attr, setting[attr])
 
     if args.output_dir is None:
-        args.output_dir = args.output_root / setup["output_subdir"]
+        args.output_dir = args.output_root / setting["output_subdir"]
 
 
 def write_summary(output_dir, rows):
@@ -433,7 +551,10 @@ def write_summary(output_dir, rows):
     path = output_dir / "noise_ci_summary.tsv"
     fieldnames = [
         "eta",
-        "setup_name",
+        "scan_type",
+        "scan_value",
+        "setting_id",
+        "shared_setting_id",
         "ci_noise",
         "ns_input",
         "np_input",
@@ -448,6 +569,7 @@ def write_summary(output_dir, rows):
         "source_parameter_file",
         "elapsed_seconds",
         "output_file",
+        "output_folder",
     ]
     with path.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
@@ -457,17 +579,140 @@ def write_summary(output_dir, rows):
     return path
 
 
+def read_shared_config(shared_eta_dir):
+    config_path = shared_eta_dir / "noise_config.json"
+    if not config_path.exists():
+        return {}
+    return json.loads(config_path.read_text())
+
+
+def materialized_config(shared_config, case, eta, shared_eta_dir, case_eta_dir):
+    config = dict(shared_config)
+    config.update(
+        {
+            "run_id": RUN_ID,
+            "source_run_id": SOURCE_RUN_ID,
+            "matched_vqt_run_id": MATCHED_VQT_RUN_ID,
+            "case_id": case["case_id"],
+            "vqt_case_id": case["vqt_case_id"],
+            "case_description": case["case_description"],
+            "shared_setting_id": case["shared_setting_id"],
+            "eta": float(eta),
+            "scan_type": "eta",
+            "scan_value": float(eta),
+            "gkp_has_no_auxiliary_mode_A": True,
+            "gkp_independent_of_tau_A": True,
+            "vqt_initial_p_thermal_nbar_metadata_only": case[
+                "vqt_initial_p_thermal_nbar_metadata_only"
+            ],
+            "vqt_initial_a_thermal_nbar_metadata_only": case[
+                "vqt_initial_a_thermal_nbar_metadata_only"
+            ],
+            "vqt_kappa_a_metadata_only": case["vqt_kappa_a_metadata_only"],
+            "vqt_n_a_metadata_only": case["vqt_n_a_metadata_only"],
+            "shared_result_folder": relative_to_repo(shared_eta_dir),
+            "materialized_case_output": True,
+            "output_file": relative_to_repo(case_eta_dir / "best_feasible_ci.txt"),
+        }
+    )
+    return config
+
+
+def materialize_cases(output_root, *, overwrite=False, strict=False):
+    rows = []
+    warnings = []
+    for case in VQT_ETA_CASES:
+        shared_setting_id = case["shared_setting_id"]
+        shared_root = output_root / "shared" / shared_setting_id
+        for eta in DEFAULT_ETAS:
+            eta_dir_name = eta_folder(eta)
+            shared_eta_dir = shared_root / eta_dir_name
+            shared_ci = shared_eta_dir / "best_feasible_ci.txt"
+            shared_source = shared_eta_dir / "source_parameter_file.txt"
+            shared_config = read_shared_config(shared_eta_dir)
+            case_eta_dir = output_root / "cases" / case["case_id"] / eta_dir_name
+            row = {
+                "case_id": case["case_id"],
+                "vqt_case_id": case["vqt_case_id"],
+                "shared_setting_id": shared_setting_id,
+                "scan_type": "eta",
+                "eta": float(eta),
+                "scan_value": float(eta),
+                "ci_noise": "",
+                "initial_p_thermal_nbar": "",
+                "kappa_o": "",
+                "kappa_m": "",
+                "n_o": "",
+                "n_m": "",
+                "gkp_has_no_auxiliary_mode_A": True,
+                "gkp_independent_of_tau_A": True,
+                "vqt_initial_a_thermal_nbar_metadata_only": case[
+                    "vqt_initial_a_thermal_nbar_metadata_only"
+                ],
+                "vqt_kappa_a_metadata_only": case["vqt_kappa_a_metadata_only"],
+                "source_parameter_file": "",
+                "shared_result_folder": relative_to_repo(shared_eta_dir),
+                "output_folder": relative_to_repo(case_eta_dir),
+                "status": "missing",
+            }
+            if not shared_ci.exists():
+                warnings.append(f"Missing shared result: {relative_to_repo(shared_ci)}")
+                rows.append(row)
+                continue
+
+            ci_value = float(shared_ci.read_text().strip())
+            config = materialized_config(shared_config, case, eta, shared_eta_dir, case_eta_dir)
+            for key in ("initial_p_thermal_nbar", "kappa_o", "kappa_m", "n_o", "n_m"):
+                row[key] = config.get(key, "")
+            row.update(
+                {
+                    "ci_noise": ci_value,
+                    "source_parameter_file": config.get("source_parameter_file", ""),
+                    "status": "ok",
+                }
+            )
+
+            targets = [
+                case_eta_dir / "best_feasible_ci.txt",
+                case_eta_dir / "noise_config.json",
+            ]
+            if shared_source.exists():
+                targets.append(case_eta_dir / "source_parameter_file.txt")
+            existing_targets = [target for target in targets if target.exists()]
+            if existing_targets and not overwrite:
+                row["materialized"] = "skipped_existing"
+                rows.append(row)
+                continue
+
+            case_eta_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(shared_ci, case_eta_dir / "best_feasible_ci.txt")
+            if shared_source.exists():
+                shutil.copy2(shared_source, case_eta_dir / "source_parameter_file.txt")
+            (case_eta_dir / "noise_config.json").write_text(
+                json.dumps(config, indent=2, sort_keys=True) + "\n"
+            )
+            row["materialized"] = "written"
+            rows.append(row)
+
+    if strict and warnings:
+        raise SystemExit("\n".join(warnings))
+    for warning in warnings:
+        print(f"Warning: {warning}", flush=True)
+    return rows
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Evaluate noisy CI for corrected GKP parameters from run 94 as job 93."
+        description="Evaluate noisy GKP CI for corrected run-94 parameters as Job 93."
     )
-    parser.add_argument("--list-setups", action="store_true")
-    parser.add_argument("--setup", choices=sorted(SETUP_BY_NAME))
-    parser.add_argument("--setup-index", type=int)
+    parser.add_argument("--list-settings", "--list-setups", dest="list_settings", action="store_true")
+    parser.add_argument("--setting")
+    parser.add_argument("--setup", dest="setting", help=argparse.SUPPRESS)
+    parser.add_argument("--setting-index", "--setup-index", dest="setting_index", type=int)
     parser.add_argument("--eta", type=float)
     parser.add_argument("--eta-index", type=int)
-    parser.add_argument("--all-etas", action="store_true")
-    parser.add_argument("--output-root", type=Path, default=Path("Data"))
+    parser.add_argument("--all-eta", "--all-etas", dest="all_eta", action="store_true")
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--initial-p-nbar", type=float)
     parser.add_argument("--kappa-o", type=float)
@@ -479,6 +724,9 @@ def parse_args():
     parser.add_argument("--max-kraus-terms", type=int)
     parser.add_argument("--max-initial-thermal-branches", type=int)
     parser.add_argument("--recompute", action="store_true")
+    parser.add_argument("--materialize-cases", action="store_true")
+    parser.add_argument("--materialize-only", action="store_true")
+    parser.add_argument("--overwrite-materialized", action="store_true")
     parser.add_argument("--validate-zero-noise", action="store_true")
     parser.add_argument("--zero-noise-tolerance", type=float, default=1e-5)
     parser.add_argument("--dry-run", action="store_true")
@@ -487,14 +735,22 @@ def parse_args():
     parser.add_argument("--return-debug", action="store_true")
     args = parser.parse_args()
 
-    if args.list_setups:
-        for idx, setup in enumerate(SETUP_PRESETS):
+    if args.list_settings:
+        for idx, setting in enumerate(SETUP_PRESETS):
             print(
-                f"{idx}: {setup['name']} "
-                f"initial_p_nbar={setup['initial_p_nbar']} "
-                f"kappa_o={setup['kappa_o']} kappa_m={setup['kappa_m']} "
-                f"n_o={setup['n_o']} n_m={setup['n_m']} "
-                f"output_subdir={setup['output_subdir']}",
+                f"{idx}: {setting['setting_id']} "
+                f"initial_p_nbar={setting['initial_p_nbar']} "
+                f"kappa_o={setting['kappa_o']} kappa_m={setting['kappa_m']} "
+                f"n_o={setting['n_o']} n_m={setting['n_m']} "
+                f"output_subdir={setting['output_subdir']}",
+                flush=True,
+            )
+        print(f"VQT eta cases: {len(VQT_ETA_CASES)}", flush=True)
+        for idx, case in enumerate(VQT_ETA_CASES):
+            print(
+                f"case {idx}: {case['vqt_case_id']} "
+                f"shared_setting_id={case['shared_setting_id']} "
+                f"vqt_kappa_a_metadata_only={case['vqt_kappa_a_metadata_only']}",
                 flush=True,
             )
         raise SystemExit(0)
@@ -505,7 +761,7 @@ def parse_args():
     if not args.output_root.is_absolute():
         args.output_root = (job_dir / args.output_root).resolve()
 
-    select_setup(args)
+    select_setting(args)
     if args.validate_zero_noise:
         validate_zero_noise_args(args)
 
@@ -516,7 +772,6 @@ def parse_args():
 
 
 def main():
-    # Parse args before setting PyTorch threads so CLI overrides SLURM defaults.
     args = parse_args()
     if args.num_threads is not None:
         num_cpu = args.num_threads
@@ -528,7 +783,7 @@ def main():
     etas = select_etas(args)
     print(f"Job directory: {job_dir}", flush=True)
     print(f"Using local QTorch: {local_qtorch_dir}", flush=True)
-    print(f"Setup: {args.setup_name}", flush=True)
+    print(f"Setting: {args.setting_id}", flush=True)
     print(f"PyTorch threads: {torch.get_num_threads()}", flush=True)
     print(
         f"Noise parameters: initial_p_nbar={args.initial_p_nbar} "
@@ -536,15 +791,18 @@ def main():
         f"n_o={args.n_o} n_m={args.n_m}",
         flush=True,
     )
-    print(f"Output directory: {relative_to_repo(args.output_dir)}", flush=True)
+    print(f"Output root: {relative_to_repo(args.output_root)}", flush=True)
+    print(f"Shared output directory: {relative_to_repo(args.output_dir)}", flush=True)
     print(f"Etas: {' '.join(eta_folder(eta) for eta in etas)}", flush=True)
 
     if args.dry_run:
         for eta in etas:
             parameters, parameter_path, source_info, protocol = load_parameters(eta, args.device)
             selection = source_info.get("selection_summary", {})
+            output_file = args.output_dir / eta_folder(eta) / "best_feasible_ci.txt"
             print(
-                f"{eta_folder(eta)}: parameter_file={relative_to_repo(parameter_path)} "
+                f"{eta_folder(eta)}: output_file={relative_to_repo(output_file)} "
+                f"parameter_file={relative_to_repo(parameter_path)} "
                 f"shape={tuple(parameters.shape)} d1={protocol['d1']} "
                 f"d2={protocol['d2']} j2={protocol['j2']} "
                 f"Nt={protocol['Nt']} NR={protocol['NR']} "
@@ -555,21 +813,39 @@ def main():
         print("Dry run only; no CI values computed.", flush=True)
         return
 
-    rows = [calculate_eta(args, eta) for eta in etas]
-    if args.validate_zero_noise:
-        failed = [
-            row
-            for row in rows
-            if row.get("zero_noise_validation_passed") is not True
-        ]
-        if failed:
-            raise SystemExit(
-                "Zero-noise validation failed for etas: "
-                + ", ".join(f"{row['eta']:.2f}" for row in failed)
-            )
-    if len(rows) > 1:
+    rows = []
+    if not args.materialize_only:
+        rows = [calculate_eta(args, eta) for eta in etas]
+        if args.validate_zero_noise:
+            failed = [
+                row
+                for row in rows
+                if row.get("zero_noise_validation_passed") is not True
+            ]
+            if failed:
+                raise SystemExit(
+                    f"Zero-noise validation failed for {len(failed)} eta value(s)."
+                )
         summary_path = write_summary(args.output_dir, rows)
-        print(f"Wrote summary: {relative_to_repo(summary_path)}", flush=True)
+        if summary_path is not None:
+            print(f"Wrote {relative_to_repo(summary_path)}", flush=True)
+
+    if args.materialize_cases or args.materialize_only:
+        materialized_rows = materialize_cases(
+            args.output_root,
+            overwrite=args.overwrite_materialized,
+            strict=False,
+        )
+        written = sum(1 for row in materialized_rows if row.get("materialized") == "written")
+        skipped = sum(
+            1 for row in materialized_rows if row.get("materialized") == "skipped_existing"
+        )
+        missing = sum(1 for row in materialized_rows if row.get("status") != "ok")
+        print(
+            f"Materialized cases: written={written} skipped_existing={skipped} "
+            f"missing_shared={missing}",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":
