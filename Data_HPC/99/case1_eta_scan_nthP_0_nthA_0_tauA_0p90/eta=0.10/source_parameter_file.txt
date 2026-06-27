@@ -1,1 +1,0 @@
-QuantumTransduction/99/parameters/eta=0.10/parameters_best_feasible.npy
