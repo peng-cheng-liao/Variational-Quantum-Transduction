@@ -66,9 +66,17 @@ TAU_A_SCAN_CASES = [
 
 COLORS = {
     "VQT": "#1f77b4",
-    "GKP": "#d62728",
+    "GKP": "#ff7f0e",
     "TMS-EA": "#2ca02c",
 }
+
+FIGSIZE = (13.2, 7.4)
+AXIS_LABEL_SIZE = 14
+TICK_LABEL_SIZE = 12
+TITLE_SIZE = 13
+LEGEND_SIZE = 13
+LINE_WIDTH = 1.9
+MARKER_SIZE = 5.5
 
 
 def find_data_root():
@@ -363,6 +371,16 @@ def load_tau_a_case(data_root, case):
     return np.array(tau_a_values), ci_array
 
 
+def unique_legend_handles(axes):
+    unique = {}
+    for ax in axes:
+        handles, labels = ax.get_legend_handles_labels()
+        for handle, label in zip(handles, labels):
+            unique.setdefault(label, handle)
+    order = ["VQT", "GKP", "TMS-EA"]
+    return [unique[label] for label in order if label in unique], [label for label in order if label in unique]
+
+
 def main():
     data_root = find_data_root()
     if not data_root.is_dir():
@@ -376,17 +394,17 @@ def main():
         print(f"Using GKP root: {gkp_root}")
 
     plt.rcParams.update({
-        "font.size": 11,
-        "axes.labelsize": 12,
-        "axes.titlesize": 12,
-        "legend.fontsize": 11,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10,
-        "lines.linewidth": 1.9,
-        "lines.markersize": 5.2,
+        "font.size": TICK_LABEL_SIZE,
+        "axes.labelsize": AXIS_LABEL_SIZE,
+        "axes.titlesize": TITLE_SIZE,
+        "legend.fontsize": LEGEND_SIZE,
+        "xtick.labelsize": TICK_LABEL_SIZE,
+        "ytick.labelsize": TICK_LABEL_SIZE,
+        "lines.linewidth": LINE_WIDTH,
+        "lines.markersize": MARKER_SIZE,
     })
 
-    fig, axes = plt.subplots(2, 3, figsize=(12.0, 7.0), sharey=True)
+    fig, axes = plt.subplots(2, 3, figsize=FIGSIZE, sharey=True)
     all_values = []
 
     for ax, case in zip(axes[0], ETA_SCAN_CASES):
@@ -400,13 +418,12 @@ def main():
 
         ax.plot(etas, vqt_ci, marker="o", color=COLORS["VQT"], label="VQT")
         if gkp_ci is not None:
-            ax.plot(gkp_etas, gkp_ci, marker="s", ls="--", color=COLORS["GKP"], label="GKP")
+            ax.plot(gkp_etas, gkp_ci, marker="*", ls="--", color=COLORS["GKP"], label="GKP")
         ax.plot(ETA_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
-        ax.set_title(eta_scan_title(case))
-        ax.set_xlabel(r"$\eta$")
+        ax.set_title(eta_scan_title(case), fontsize=TITLE_SIZE, pad=5)
+        ax.set_xlabel(r"Transduction efficiency $\eta$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
         ax.set_xlim(0.03, 0.97)
         ax.set_xticks(np.arange(0.1, 1.0, 0.2))
-        ax.grid(True, alpha=0.25)
 
     for ax, case in zip(axes[1], TAU_A_SCAN_CASES):
         tau_a_values, vqt_ci = load_tau_a_case(data_root, case)
@@ -421,23 +438,36 @@ def main():
         if np.isfinite(gkp_ci):
             ax.axhline(gkp_ci, ls="--", color=COLORS["GKP"], label="GKP")
         ax.plot(TAU_A_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
-        ax.set_title(tau_a_scan_title(case))
-        ax.set_xlabel(r"$\tau_A$")
+        ax.set_title(tau_a_scan_title(case), fontsize=TITLE_SIZE, pad=5)
+        ax.set_xlabel(r"Ancillary transmissivity $\tau_A$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
         ax.set_xlim(1.01, 0.79)
         ax.set_xticks(np.arange(1.00, 0.79, -0.05))
+
+    for ax in axes.flat:
+        ax.tick_params(axis="both", which="major", labelsize=TICK_LABEL_SIZE, width=1.0, length=3.5)
         ax.grid(True, alpha=0.25)
 
-    axes[0, 0].set_ylabel("Coherent Information")
-    axes[1, 0].set_ylabel("Coherent Information")
+    axes[0, 0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
+    axes[1, 0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
     if all_values:
         ymin = min(all_values)
         ymax = max(all_values)
         pad = 0.06 * max(ymax - ymin, 1.0)
         axes[0, 0].set_ylim(ymin - pad, ymax + pad)
 
-    handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False, bbox_to_anchor=(0.5, 1.02))
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    handles, labels = unique_legend_handles(axes.flat)
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.01),
+        ncol=3,
+        frameon=False,
+        fontsize=LEGEND_SIZE,
+        handlelength=1.5,
+        columnspacing=1.2,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.93], w_pad=0.8, h_pad=1.2)
 
     FIG_DIR.mkdir(exist_ok=True)
     for suffix in ("jpg", "pdf"):
