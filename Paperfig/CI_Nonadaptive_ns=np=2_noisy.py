@@ -32,34 +32,24 @@ N_P = 2.0
 
 ETA_SCAN_CASES = [
     {
-        "case_id": "nthP_0p1_nthA_0p1_tauAll_0p99",
-        "n_th": 0.1,
+        "case_id": "nthP_0p01_nthA_0p01_tauAll_0p99",
+        "n_th": 0.01,
     },
     {
         "case_id": "nthP_0p05_nthA_0p05_tauAll_0p99",
         "n_th": 0.05,
     },
     {
-        "case_id": "nthP_0p01_nthA_0p01_tauAll_0p99",
-        "n_th": 0.01,
+        "case_id": "nthP_0p1_nthA_0p1_tauAll_0p99",
+        "n_th": 0.1,
     },
 ]
 
 TAU_A_VALUES = np.around(np.arange(0.80, 1.01, 0.01), 2)
 TAU_A_SCAN_CASES = [
     {
-        "case_id": "eta_0p30_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
-        "eta": 0.30,
-        "n_th": 0.01,
-    },
-    {
-        "case_id": "eta_0p50_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
-        "eta": 0.50,
-        "n_th": 0.01,
-    },
-    {
-        "case_id": "eta_0p70_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
-        "eta": 0.70,
+        "case_id": "eta_0p40_nthP_0p01_nthA_0p01_tauSP_0p99_tauA_scan",
+        "eta": 0.40,
         "n_th": 0.01,
     },
 ]
@@ -70,13 +60,14 @@ COLORS = {
     "TMS-EA": "#2ca02c",
 }
 
-FIGSIZE = (13.2, 7.4)
-AXIS_LABEL_SIZE = 14
-TICK_LABEL_SIZE = 12
-TITLE_SIZE = 13
-LEGEND_SIZE = 13
+FIGSIZE = (16.0, 4.8)
+AXIS_LABEL_SIZE = 19
+TICK_LABEL_SIZE = 15
+TITLE_SIZE = 18
+LEGEND_SIZE = 18
+PANEL_LABEL_SIZE = AXIS_LABEL_SIZE + 2
 LINE_WIDTH = 1.9
-MARKER_SIZE = 5.5
+MARKER_SIZE = 6.0
 
 
 def find_data_root():
@@ -404,10 +395,10 @@ def main():
         "lines.markersize": MARKER_SIZE,
     })
 
-    fig, axes = plt.subplots(2, 3, figsize=FIGSIZE, sharey=True)
+    fig, axes = plt.subplots(1, 4, figsize=FIGSIZE, sharey=True)
     all_values = []
 
-    for ax, case in zip(axes[0], ETA_SCAN_CASES):
+    for ax, case in zip(axes[:3], ETA_SCAN_CASES):
         etas, vqt_ci = load_vqt_case(data_root, case)
         gkp_etas, gkp_ci = load_gkp_case(gkp_root, case)
         tms_ci = tms_ea_curve(ETA_VALUES, case["n_th"])
@@ -425,49 +416,61 @@ def main():
         ax.set_xlim(0.03, 0.97)
         ax.set_xticks(np.arange(0.1, 1.0, 0.2))
 
-    for ax, case in zip(axes[1], TAU_A_SCAN_CASES):
-        tau_a_values, vqt_ci = load_tau_a_case(data_root, case)
-        gkp_ci = load_gkp_eta_value(gkp_root, case)
-        tms_ci = tms_ea_tau_a_curve(TAU_A_VALUES, case["eta"], case["n_th"])
-        all_values.extend(vqt_ci[np.isfinite(vqt_ci)])
-        if np.isfinite(gkp_ci):
-            all_values.append(gkp_ci)
-        all_values.extend(tms_ci[np.isfinite(tms_ci)])
+    tau_a_case = TAU_A_SCAN_CASES[0]
+    tau_a_ax = axes[3]
+    tau_a_scan_values, tau_a_vqt_ci = load_tau_a_case(data_root, tau_a_case)
+    tau_a_gkp_ci = load_gkp_eta_value(gkp_root, tau_a_case)
+    tau_a_tms_ci = tms_ea_tau_a_curve(TAU_A_VALUES, tau_a_case["eta"], tau_a_case["n_th"])
+    all_values.extend(tau_a_vqt_ci[np.isfinite(tau_a_vqt_ci)])
+    if np.isfinite(tau_a_gkp_ci):
+        all_values.append(tau_a_gkp_ci)
+    all_values.extend(tau_a_tms_ci[np.isfinite(tau_a_tms_ci)])
 
-        ax.plot(tau_a_values, vqt_ci, marker="o", color=COLORS["VQT"], label="VQT")
-        if np.isfinite(gkp_ci):
-            ax.axhline(gkp_ci, ls="--", color=COLORS["GKP"], label="GKP")
-        ax.plot(TAU_A_VALUES, tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
-        ax.set_title(tau_a_scan_title(case), fontsize=TITLE_SIZE, pad=5)
-        ax.set_xlabel(r"Ancillary transmissivity $\kappa_A$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
-        ax.set_xlim(1.01, 0.79)
-        ax.set_xticks(np.arange(1.00, 0.79, -0.05))
+    tau_a_ax.plot(tau_a_scan_values, tau_a_vqt_ci, marker="o", color=COLORS["VQT"], label="VQT")
+    if np.isfinite(tau_a_gkp_ci):
+        tau_a_ax.axhline(tau_a_gkp_ci, ls="--", color=COLORS["GKP"], label="GKP")
+    tau_a_ax.plot(TAU_A_VALUES, tau_a_tms_ci, marker="^", color=COLORS["TMS-EA"], label="TMS-EA")
+    tau_a_ax.set_title(tau_a_scan_title(tau_a_case), fontsize=TITLE_SIZE, pad=5)
+    tau_a_ax.set_xlabel(r"Ancillary transmissivity $\kappa_A$", fontsize=AXIS_LABEL_SIZE, labelpad=3)
+    tau_a_ax.set_xlim(1.01, 0.79)
+    tau_a_ax.set_xticks(np.arange(1.00, 0.79, -0.05))
 
-    for ax in axes.flat:
+    for ax in axes:
         ax.tick_params(axis="both", which="major", labelsize=TICK_LABEL_SIZE, width=1.0, length=3.5)
         ax.grid(True, alpha=0.25)
 
-    axes[0, 0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
-    axes[1, 0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
+    axes[0].set_ylabel("Coherent Information (CI)", fontsize=AXIS_LABEL_SIZE, labelpad=5)
     if all_values:
         ymin = min(all_values)
         ymax = max(all_values)
         pad = 0.06 * max(ymax - ymin, 1.0)
-        axes[0, 0].set_ylim(ymin - pad, ymax + pad)
+        axes[0].set_ylim(ymin - pad, ymax + pad)
 
-    handles, labels = unique_legend_handles(axes.flat)
+    handles, labels = unique_legend_handles(axes)
     fig.legend(
         handles,
         labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.01),
+        bbox_to_anchor=(0.5, 0.99),
         ncol=3,
         frameon=False,
         fontsize=LEGEND_SIZE,
-        handlelength=1.5,
-        columnspacing=1.2,
+        handlelength=1.7,
+        columnspacing=1.4,
     )
-    fig.tight_layout(rect=[0, 0, 1, 0.93], w_pad=0.8, h_pad=1.2)
+    fig.tight_layout(rect=[0, 0.10, 1, 0.88], w_pad=0.8)
+
+    for label, ax in zip(("(a)", "(b)", "(c)", "(d)"), axes):
+        bbox = ax.get_position()
+        fig.text(
+            (bbox.x0 + bbox.x1) / 2.0,
+            0.03,
+            label,
+            ha="center",
+            va="bottom",
+            fontsize=PANEL_LABEL_SIZE,
+            fontweight="bold",
+        )
 
     FIG_DIR.mkdir(exist_ok=True)
     for suffix in ("jpg", "pdf"):
