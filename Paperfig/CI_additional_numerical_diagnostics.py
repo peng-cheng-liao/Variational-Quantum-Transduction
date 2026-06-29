@@ -408,7 +408,7 @@ def add_panel_label(ax, label):
 
 def main():
     configure_style()
-    fig = plt.figure(figsize=(7.2, 7.6), constrained_layout=True)
+    fig = plt.figure(figsize=(7.2, 6.0), constrained_layout=True)
     gs = fig.add_gridspec(
         2,
         2,
