@@ -275,7 +275,12 @@ def plot_training_summary(ax):
     ax.set_xlabel("Training step")
     ax.set_ylabel("Coherent information")
     ax.tick_params(axis="both", which="major")
-    legend = ax.legend(loc="lower right", frameon=False, handlelength=2.2)
+    legend = ax.legend(
+        loc="lower right",
+        bbox_to_anchor=(0.83, 0.02),
+        frameon=False,
+        handlelength=2.2,
+    )
     for handle in legend.legend_handles:
         handle.set_linewidth(2.0)
         handle.set_alpha(1.0)
@@ -397,16 +402,15 @@ def plot_depth_scan(ax):
 
 
 def add_panel_label(ax, label):
-    ax.annotate(
+    ax.text(
+        0.96,
+        0.06,
         label,
-        xy=(0.0, 1.0),
-        xycoords="axes fraction",
-        xytext=(0, 8),
-        textcoords="offset points",
+        transform=ax.transAxes,
         fontsize=13,
         fontweight="bold",
         va="bottom",
-        ha="left",
+        ha="right",
     )
 
 
