@@ -114,12 +114,6 @@ def load_gkp_processed_ci():
 def plot_n3_ci(ax):
     vqt_ci = load_best_feasible_ci(VQT_RUN_ID_N3)
     vqt_without_ea_ci = load_best_feasible_ci(VQT_WITHOUT_EA_RUN_ID_N3)
-    gkp_etas, gkp_ci = load_gkp_processed_ci()
-
-    selected_etas = np.around(np.arange(0.05, 0.70, 0.05), 2)
-    gkp_mask = np.isin(np.around(gkp_etas, 2), selected_etas)
-    gkp_etas = gkp_etas[gkp_mask]
-    gkp_ci = gkp_ci[gkp_mask]
 
     r = np.arcsinh(np.sqrt(n_p_n3))
     gain = np.cosh(r) ** 2
@@ -139,7 +133,6 @@ def plot_n3_ci(ax):
         linestyle="--",
         color=default_colors[0],
     )
-    ax.plot(gkp_etas, gkp_ci, label="GKP-QT", linestyle="--", marker="*", color=default_colors[1])
     ax.plot(eta_grid_n3, tms_ea_ci, label="TMS-EA", marker="^", color=default_colors[2])
     ax.plot(eta_grid_n3, qt_ci, label="QT", linestyle="--", marker="v", color=default_colors[3])
 
@@ -152,7 +145,6 @@ def plot_n3_ci(ax):
     print("Panel (a) n_S=n_P=3 diagnostics:")
     print(f"  VQT max CI={np.nanmax(vqt_ci):.12g}")
     print(f"  VQT without EA max CI={np.nanmax(vqt_without_ea_ci):.12g}")
-    print(f"  GKP-QT selected points={len(gkp_ci)}, max CI={np.nanmax(gkp_ci):.12g}")
 
 
 def resolve_training_root():
