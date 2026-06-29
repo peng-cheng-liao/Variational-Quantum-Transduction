@@ -269,7 +269,7 @@ def plot_training_summary(ax):
     ax.tick_params(axis="both", which="major")
     legend = ax.legend(
         loc="lower right",
-        bbox_to_anchor=(0.83, 0.02),
+        bbox_to_anchor=(0.83, -0.02),
         frameon=False,
         handlelength=2.2,
     )
